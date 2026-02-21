@@ -3,8 +3,13 @@ import { saveConfig } from '../storage.js'
 import { listNotes } from '../github.js'
 import s from '../styles/ConfigScreen.module.css'
 
-export default function ConfigScreen({ onConnect }) {
-  const [form, setForm] = useState({ pat: '', owner: '', repo: '', branch: 'main' })
+export default function ConfigScreen({ onConnect, hints }) {
+  const [form, setForm] = useState({
+    pat: '',
+    owner: hints?.owner ?? '',
+    repo: hints?.repo ?? '',
+    branch: hints?.branch ?? 'main',
+  })
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState(null) // { type: 'success'|'error', message }
 
