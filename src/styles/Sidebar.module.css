@@ -52,3 +52,83 @@
   0%, 100% { opacity: 0.4; }
   50% { opacity: 0.8; }
 }
+
+/* ── Folder tree ─────────────────────────────────────────────────────────── */
+
+.folderGroup {
+  /* wrapper for a folder + its contents */
+}
+
+.folderRow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  padding-right: 14px;
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--transition);
+  border-left: 2px solid transparent;
+}
+
+.folderRow:hover {
+  background: var(--color-surface2);
+}
+
+.chevron {
+  color: var(--color-muted);
+  display: inline-block;
+  transition: transform 0.18s ease;
+  flex-shrink: 0;
+}
+
+.chevronCollapsed {
+  transform: rotate(-90deg);
+}
+
+.folderIcon {
+  color: #6b7cff;
+  flex-shrink: 0;
+  transition: color 0.15s ease;
+}
+
+.folderIconOpen {
+  color: #818cf8;
+}
+
+.folderName {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.folderRow:hover .folderName {
+  color: var(--color-text);
+}
+
+.folderDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.folderContents {
+  /* No extra indentation here — NoteItem handles its own via inline paddingLeft */
+}
+
+.rootDivider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 4px 12px;
+  opacity: 0.5;
+}
