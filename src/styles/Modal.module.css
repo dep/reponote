@@ -110,3 +110,15 @@
 .btnDanger:hover:not(:disabled) {
   background: #dc2626;
 }
+
+.btnDiscard {
+  padding: 8px 16px;
+  background: transparent;
+  color: var(--color-danger);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  font-weight: 600;
+}
+
+.btnDiscard:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.1);
+}

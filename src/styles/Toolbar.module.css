@@ -116,3 +116,18 @@
   color: var(--color-text);
   background: var(--color-surface2);
 }
+
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 3px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-family: var(--font-sans);
+  line-height: 1.7;
+  color: rgba(255,255,255,0.45);
+  margin-left: 5px;
+  pointer-events: none;
+}

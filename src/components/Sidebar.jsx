@@ -1,7 +1,7 @@
 import NoteItem from './NoteItem.jsx'
 import s from '../styles/Sidebar.module.css'
 
-export default function Sidebar({ notes, noteCache, noteMeta, selectedPath, searchQuery, onSearch, onSelect, loading }) {
+export default function Sidebar({ notes, noteCache, noteMeta, selectedPath, searchQuery, onSearch, onSelect, loading, searchRef }) {
   // Filter by search query
   const filtered = notes.filter(note => {
     const q = searchQuery.toLowerCase().trim()
@@ -24,6 +24,7 @@ export default function Sidebar({ notes, noteCache, noteMeta, selectedPath, sear
     <div className={s.sidebar}>
       <div className={s.search}>
         <input
+          ref={searchRef}
           className={s.searchInput}
           type="search"
           placeholder="Search notes…"

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import s from '../styles/Modal.module.css'
 
-export default function Modal({ modal, onConfirm, onCancel }) {
+export default function Modal({ modal, onConfirm, onCancel, onUnsavedDiscard, onUnsavedSave }) {
   const [newPath, setNewPath] = useState('')
   const inputRef = useRef(null)
 
@@ -71,6 +71,22 @@ export default function Modal({ modal, onConfirm, onCancel }) {
               >
                 Create
               </button>
+            </div>
+          </>
+        )}
+
+        {modal.type === 'unsaved' && (
+          <>
+            <div className={s.title}>Unsaved changes</div>
+            <div className={s.body}>
+              You have unsaved changes in{' '}
+              <span className={s.filename}>{modal.path}</span>.
+              What would you like to do?
+            </div>
+            <div className={s.actions}>
+              <button className={s.btnCancel} onClick={onCancel}>Keep editing</button>
+              <button className={s.btnDiscard} onClick={onUnsavedDiscard}>Discard</button>
+              <button className={s.btnConfirm} onClick={onUnsavedSave}>Save (commit)</button>
             </div>
           </>
         )}

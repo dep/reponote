@@ -46,7 +46,7 @@ export default function MarkdownEditor({ content, onChange, onSave, onCancel, is
             Cancel
           </button>
           <button className={s.btnSave} onClick={onSave} disabled={isSaving}>
-            {isSaving ? 'Saving…' : 'Save'}
+            {isSaving ? 'Saving…' : 'Save (commit)'}
           </button>
         </div>
       </div>

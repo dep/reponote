@@ -7,6 +7,7 @@ import Sidebar from './components/Sidebar.jsx'
 import Toolbar from './components/Toolbar.jsx'
 import EditorPane from './components/EditorPane.jsx'
 import Modal from './components/Modal.jsx'
+import CommandPalette from './components/CommandPalette.jsx'
 import s from './styles/App.module.css'
 
 export default function App() {
@@ -36,6 +37,12 @@ export default function App() {
 
   // Modal
   const [modal, setModal] = useState(null) // { type: 'delete'|'new', path?, sha? }
+
+  // Command palette
+  const [paletteOpen, setPaletteOpen] = useState(false)
+
+  // Ref for the sidebar search input (⌘F focuses it)
+  const searchRef = useRef(null)
 
   const isConfigured = config.pat && config.owner && config.repo
 
@@ -132,6 +139,63 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config.owner, config.repo, config.branch])
 
+  // ── Global keyboard shortcuts ─────────────────────────────────────────────
+
+  // Keep a ref to the latest state/handlers so the listener never goes stale.
+  // This fixes two bugs:
+  //   1. ⌘E reading a stale noteCache (empty editor) — noteCache wasn't in deps
+  //   2. ⌘N firing browser new-window — preventDefault must run before any guards
+  const shortcutStateRef = useRef({})
+  shortcutStateRef.current = {
+    mode, selectedPath, isConfigured,
+    handleSave, handleToggleMode, openDeleteModal,
+  }
+
+  useEffect(() => {
+    function onKeyDown(e) {
+      const mod = e.metaKey || e.ctrlKey
+      if (!mod) return
+
+      const { mode, selectedPath, isConfigured,
+              handleSave, handleToggleMode, openDeleteModal } = shortcutStateRef.current
+
+      const tag = document.activeElement?.tagName
+      const inText = tag === 'TEXTAREA' || (tag === 'INPUT' && document.activeElement !== searchRef.current)
+
+      // Identify the shortcut first so we can preventDefault before any guards.
+      // Unknown shortcuts fall through without calling preventDefault.
+      const key = e.key
+
+      if (key === 's' && inText) {
+        // ⌘S inside editor — let MarkdownEditor's own handler fire, don't intercept
+        return
+      }
+      if (key === 's' && mode === 'edit' && selectedPath) {
+        e.preventDefault()
+        handleSave()
+      } else if (key === 'f') {
+        e.preventDefault()
+        searchRef.current?.focus()
+        searchRef.current?.select()
+      } else if (key === 'k' && !inText) {
+        e.preventDefault()
+        if (isConfigured) setPaletteOpen(p => !p)
+      } else if (key === 'n' && !inText) {
+        e.preventDefault()
+        if (isConfigured) setModal({ type: 'new' })
+      } else if (key === 'e' && selectedPath) {
+        e.preventDefault()
+        handleToggleMode()
+      } else if ((key === 'Backspace' || key === 'Delete') && !inText && selectedPath) {
+        e.preventDefault()
+        openDeleteModal()
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, []) // registered once — reads live state via ref
+
   // ── Fetch note list ───────────────────────────────────────────────────────
 
   const fetchNoteList = useCallback(async (cfg = config) => {
@@ -155,9 +219,11 @@ export default function App() {
 
   // ── Select a note ─────────────────────────────────────────────────────────
 
+  // Inner: actually load + switch to the note (no unsaved check).
   const handleSelectNote = useCallback(async (path) => {
     setSelectedPath(path)
     setMode('view')
+    setEditContent('')
     setNoteError(null)
 
     if (noteCache[path]) return // already cached
@@ -172,6 +238,17 @@ export default function App() {
       setStatus({ type: 'error', message: e.message })
     }
   }, [config, noteCache])
+
+  // Outer: used by Sidebar + popstate. Guards unsaved changes before switching.
+  function handleSelectNoteGuarded(path) {
+    if (path === selectedPath) return
+    const dirty = mode === 'edit' && editContent !== (noteCache[selectedPath]?.content ?? '')
+    if (dirty) {
+      setModal({ type: 'unsaved', path: selectedPath, onProceed: () => handleSelectNote(path) })
+    } else {
+      handleSelectNote(path)
+    }
+  }
 
   // ── Reload a note (e.g. after conflict) ───────────────────────────────────
 
@@ -190,6 +267,36 @@ export default function App() {
     }
   }, [config, selectedPath])
 
+  // ── Unsaved-changes guard ─────────────────────────────────────────────────
+
+  // If there are unsaved changes, open the warning modal with a proceed callback.
+  // Otherwise call onProceed immediately.
+  function guardUnsaved(onProceed) {
+    const dirty = mode === 'edit' && editContent !== (noteCache[selectedPath]?.content ?? '')
+    if (dirty) {
+      setModal({ type: 'unsaved', path: selectedPath, onProceed })
+    } else {
+      onProceed()
+    }
+  }
+
+  // Called when user clicks "Discard" in the unsaved modal
+  function handleUnsavedDiscard() {
+    const onProceed = modal?.onProceed
+    setModal(null)
+    setMode('view')
+    setEditContent('')
+    onProceed?.()
+  }
+
+  // Called when user clicks "Save (commit)" in the unsaved modal
+  async function handleUnsavedSave() {
+    const onProceed = modal?.onProceed
+    setModal(null)
+    await handleSave()
+    onProceed?.()
+  }
+
   // ── Toggle edit/view mode ─────────────────────────────────────────────────
 
   function handleToggleMode() {
@@ -197,13 +304,18 @@ export default function App() {
       setEditContent(noteCache[selectedPath]?.content ?? '')
       setMode('edit')
     } else {
-      handleCancelEdit()
+      guardUnsaved(() => {
+        setMode('view')
+        setEditContent('')
+      })
     }
   }
 
   function handleCancelEdit() {
-    setMode('view')
-    setEditContent('')
+    guardUnsaved(() => {
+      setMode('view')
+      setEditContent('')
+    })
   }
 
   // ── Save a note ───────────────────────────────────────────────────────────
@@ -344,6 +456,7 @@ export default function App() {
         onDelete={openDeleteModal}
         onToggleMode={handleToggleMode}
         onDisconnect={handleDisconnect}
+        onOpenPalette={() => setPaletteOpen(true)}
       />
 
       <div className={s.body}>
@@ -354,8 +467,9 @@ export default function App() {
           selectedPath={selectedPath}
           searchQuery={searchQuery}
           onSearch={setSearchQuery}
-          onSelect={handleSelectNote}
+          onSelect={handleSelectNoteGuarded}
           loading={loadingNotes}
+          searchRef={searchRef}
         />
 
         <EditorPane
@@ -376,7 +490,17 @@ export default function App() {
         modal={modal}
         onConfirm={modal?.type === 'new' ? handleCreate : handleDeleteConfirm}
         onCancel={() => setModal(null)}
+        onUnsavedDiscard={handleUnsavedDiscard}
+        onUnsavedSave={handleUnsavedSave}
       />
+
+      {paletteOpen && (
+        <CommandPalette
+          notes={notes}
+          onSelect={path => { setPaletteOpen(false); handleSelectNoteGuarded(path) }}
+          onClose={() => setPaletteOpen(false)}
+        />
+      )}
     </div>
   )
 }
