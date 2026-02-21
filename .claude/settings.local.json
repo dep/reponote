@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:vitejs.dev)",
+      "WebFetch(domain:vite.dev)",
+      "Bash(npm init:*)",
+      "Bash(npm install:*)",
+      "mcp__Claude_Preview__preview_start"
+    ]
+  }
+}

@@ -1,0 +1,118 @@
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  height: var(--toolbar-height);
+  background: var(--color-surface);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.logoIcon { font-size: 18px; }
+
+.logoText {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.divider {
+  width: 1px;
+  height: 20px;
+  background: var(--color-border);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.btnNew {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--color-accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.btnNew:hover:not(:disabled) {
+  background: var(--color-accent-h);
+}
+
+.btnIcon {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  background: var(--color-surface2);
+  color: var(--color-text);
+  font-size: 13px;
+  border: 1px solid var(--color-border);
+}
+
+.btnIcon:hover:not(:disabled) {
+  background: var(--color-border);
+}
+
+.btnDanger {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  background: transparent;
+  color: var(--color-danger);
+  font-size: 13px;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.btnDanger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.spacer { flex: 1; }
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-muted);
+  flex-shrink: 0;
+}
+
+.dot.loading { background: var(--color-accent); animation: blink 1s ease-in-out infinite; }
+.dot.saving  { background: var(--color-warning); animation: blink 1s ease-in-out infinite; }
+.dot.error   { background: var(--color-danger); }
+.dot.success { background: var(--color-success); }
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.disconnect {
+  padding: 6px 10px;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 12px;
+  border: 1px solid var(--color-border);
+}
+
+.disconnect:hover {
+  color: var(--color-text);
+  background: var(--color-surface2);
+}
