@@ -9,6 +9,9 @@ export default function Toolbar({
   onToggleMode,
   onDisconnect,
   onOpenPalette,
+  onOpenHistory,
+  onRename,
+  onPublishGist,
 }) {
   const dotClass = status.type === 'idle' ? '' : s[status.type]
   const isMac = typeof navigator !== 'undefined' && navigator.platform?.toUpperCase().includes('MAC')
@@ -35,6 +38,15 @@ export default function Toolbar({
         <>
           <button className={s.btnIcon} onClick={onToggleMode} title={`Toggle edit/view (${mod}E)`}>
             {mode === 'view' ? '✏️ Edit' : '👁 View'} <kbd className={s.kbd}>{mod}E</kbd>
+          </button>
+          <button className={s.btnIcon} onClick={onOpenHistory} title="Commit history">
+            🕓 History
+          </button>
+          <button className={s.btnIcon} onClick={onRename} title="Rename or move note">
+            📁 Rename
+          </button>
+          <button className={s.btnIcon} onClick={onPublishGist} title="Publish as secret Gist">
+            ↑ Gist
           </button>
           <button className={s.btnDanger} onClick={onDelete} title={`Delete note (${mod}⌫)`}>
             🗑 Delete

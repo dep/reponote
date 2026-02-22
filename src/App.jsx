@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { loadConfig, clearConfig, saveConfig } from './storage.js'
-import { listNotes, getNote, saveNote, deleteNote } from './github.js'
+import { listNotes, getNote, saveNote, deleteNote, getNoteCommits, renameNote, publishGist, searchNotesByTag } from './github.js'
 import { buildHash, parseHash } from './permalink.js'
 import ConfigScreen from './components/ConfigScreen.jsx'
 import Sidebar from './components/Sidebar.jsx'
@@ -28,6 +28,28 @@ export default function App() {
   const [mode, setMode] = useState('view') // 'view' | 'edit'
   const [editContent, setEditContent] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
+
+  // Tag search panel: null | { tag, results, loading, error }
+  const [tagResults, setTagResults] = useState(null)
+
+  // Backlinks: notes that contain a [[wikilink]] pointing to the current note
+  const backlinks = useMemo(() => {
+    if (!selectedPath) return []
+    const parts = selectedPath.split('/')
+    const currentFilename = parts[parts.length - 1].replace(/\.md$/, '').toLowerCase()
+    const wikilinkRe = /\[\[([^\]]+)\]\]/g
+    return notes.filter(n => {
+      if (n.path === selectedPath) return false
+      const cached = noteCache[n.path]
+      if (!cached) return false
+      for (const match of cached.content.matchAll(wikilinkRe)) {
+        if (match[1].trim().toLowerCase() === currentFilename) return true
+      }
+      return false
+    })
+  }, [selectedPath, notes, noteCache])
 
   // Search
   const [searchQuery, setSearchQuery] = useState('')
@@ -218,6 +240,9 @@ export default function App() {
   }, [isConfigured])
 
   // ── Select a note ─────────────────────────────────────────────────────────
+
+  // Close history panel when switching notes
+  useEffect(() => { setHistoryOpen(false) }, [selectedPath])
 
   // Inner: actually load + switch to the note (no unsaved check).
   const handleSelectNote = useCallback(async (path) => {
@@ -412,6 +437,84 @@ export default function App() {
     setModal({ type: 'delete', path: selectedPath, sha })
   }
 
+  // ── Rename / move a note ─────────────────────────────────────────────────
+
+  function openRenameModal() {
+    if (!selectedPath) return
+    setModal({ type: 'rename', path: selectedPath })
+  }
+
+  async function handleRenameConfirm(rawNewPath) {
+    if (!modal || modal.type !== 'rename') return
+    let newPath = rawNewPath.trim()
+    if (!newPath.endsWith('.md')) newPath += '.md'
+    if (newPath === selectedPath) { setModal(null); return }
+    if (notes.some(n => n.path === newPath)) {
+      setStatus({ type: 'error', message: `A note already exists at "${newPath}".` })
+      return
+    }
+    const oldPath = selectedPath
+    const content = (mode === 'edit' ? editContent : null) ?? noteCache[oldPath]?.content ?? ''
+    const sha = noteCache[oldPath]?.sha ?? notes.find(n => n.path === oldPath)?.sha
+    setModal(null)
+    setStatus({ type: 'saving', message: 'Renaming…' })
+    try {
+      const newSha = await renameNote(config, oldPath, newPath, content, sha)
+      setNoteCache(prev => {
+        const next = { ...prev }
+        delete next[oldPath]
+        next[newPath] = { content, sha: newSha }
+        return next
+      })
+      setNotes(prev =>
+        prev
+          .filter(n => n.path !== oldPath)
+          .concat({ path: newPath, sha: newSha })
+          .sort((a, b) => a.path.localeCompare(b.path))
+      )
+      setNoteMeta(prev => {
+        const next = { ...prev }
+        delete next[oldPath]
+        next[newPath] = Date.now()
+        return next
+      })
+      setSelectedPath(newPath)
+      setMode('view')
+      setStatus({ type: 'success', message: 'Renamed.' })
+      setTimeout(() => setStatus({ type: 'idle', message: '' }), 2500)
+    } catch (e) {
+      setStatus({ type: 'error', message: e.message })
+    }
+  }
+
+  // ── Publish as Gist ───────────────────────────────────────────────────────
+
+  async function handlePublishGist() {
+    if (!selectedPath) return
+    const content = noteCache[selectedPath]?.content ?? ''
+    setStatus({ type: 'saving', message: 'Publishing gist…' })
+    try {
+      const url = await publishGist(config, selectedPath, content)
+      setStatus({ type: 'success', message: 'Gist published.' })
+      setTimeout(() => setStatus({ type: 'idle', message: '' }), 3000)
+      setModal({ type: 'gist', url })
+    } catch (e) {
+      setStatus({ type: 'error', message: e.message })
+    }
+  }
+
+  // ── Tag search ────────────────────────────────────────────────────────────
+
+  async function handleTagClick(tag) {
+    setTagResults({ tag, results: [], loading: true, error: null })
+    try {
+      const results = await searchNotesByTag(config, tag)
+      setTagResults({ tag, results, loading: false, error: null })
+    } catch (e) {
+      setTagResults({ tag, results: [], loading: false, error: e.message })
+    }
+  }
+
   // ── Disconnect ────────────────────────────────────────────────────────────
 
   function handleDisconnect() {
@@ -457,6 +560,9 @@ export default function App() {
         onToggleMode={handleToggleMode}
         onDisconnect={handleDisconnect}
         onOpenPalette={() => setPaletteOpen(true)}
+        onOpenHistory={() => setHistoryOpen(h => !h)}
+        onRename={openRenameModal}
+        onPublishGist={handlePublishGist}
       />
 
       <div className={s.body}>
@@ -483,12 +589,28 @@ export default function App() {
           isSaving={isSaving}
           noteError={noteError}
           onReloadNote={handleReloadNote}
+          notes={notes}
+          onNavigate={handleSelectNoteGuarded}
+          previewOpen={previewOpen}
+          onPreviewToggle={setPreviewOpen}
+          backlinks={backlinks}
+          config={config}
+          historyOpen={historyOpen}
+          onHistoryClose={() => setHistoryOpen(false)}
+          tagResults={tagResults}
+          onTagClick={handleTagClick}
+          onTagClose={() => setTagResults(null)}
         />
       </div>
 
       <Modal
         modal={modal}
-        onConfirm={modal?.type === 'new' ? handleCreate : handleDeleteConfirm}
+        onConfirm={
+          modal?.type === 'new'    ? handleCreate :
+          modal?.type === 'rename' ? handleRenameConfirm :
+          modal?.type === 'gist'   ? () => setModal(null) :
+          handleDeleteConfirm
+        }
         onCancel={() => setModal(null)}
         onUnsavedDiscard={handleUnsavedDiscard}
         onUnsavedSave={handleUnsavedSave}

@@ -3,13 +3,15 @@ import s from '../styles/Modal.module.css'
 
 export default function Modal({ modal, onConfirm, onCancel, onUnsavedDiscard, onUnsavedSave }) {
   const [newPath, setNewPath] = useState('')
+  const [renamePath, setRenamePath] = useState('')
+  const [copied, setCopied] = useState(false)
   const inputRef = useRef(null)
 
   useEffect(() => {
-    if (modal && inputRef.current) {
-      inputRef.current.focus()
-    }
-    if (modal?.type === 'new') setNewPath('')
+    if (modal && inputRef.current) inputRef.current.focus()
+    if (modal?.type === 'new')    setNewPath('')
+    if (modal?.type === 'rename') setRenamePath(modal.path ?? '')
+    if (modal?.type === 'gist')   setCopied(false)
   }, [modal])
 
   useEffect(() => {
@@ -18,11 +20,13 @@ export default function Modal({ modal, onConfirm, onCancel, onUnsavedDiscard, on
       if (e.key === 'Enter') {
         if (modal?.type === 'delete') onConfirm()
         if (modal?.type === 'new' && newPath.trim()) onConfirm(newPath.trim())
+        if (modal?.type === 'rename' && renamePath.trim() && renamePath !== modal.path)
+          onConfirm(renamePath.trim())
       }
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [modal, newPath, onConfirm, onCancel])
+  }, [modal, newPath, renamePath, onConfirm, onCancel])
 
   if (!modal) return null
 
@@ -71,6 +75,58 @@ export default function Modal({ modal, onConfirm, onCancel, onUnsavedDiscard, on
               >
                 Create
               </button>
+            </div>
+          </>
+        )}
+
+        {modal.type === 'rename' && (
+          <>
+            <div className={s.title}>Rename / move note</div>
+            <div className={s.field}>
+              <label className={s.label}>New file path</label>
+              <input
+                ref={inputRef}
+                className={s.input}
+                type="text"
+                value={renamePath}
+                onChange={e => setRenamePath(e.target.value)}
+              />
+              <span className={s.hint}>
+                Change the path to move the note. A new commit will be created on GitHub.
+              </span>
+            </div>
+            <div className={s.actions}>
+              <button className={s.btnCancel} onClick={onCancel}>Cancel</button>
+              <button
+                className={s.btnConfirm}
+                onClick={() => renamePath.trim() && renamePath !== modal.path && onConfirm(renamePath.trim())}
+                disabled={!renamePath.trim() || renamePath === modal.path}
+              >
+                Rename
+              </button>
+            </div>
+          </>
+        )}
+
+        {modal.type === 'gist' && (
+          <>
+            <div className={s.title}>Published as Gist</div>
+            <div className={s.body}>
+              Your note has been published as a secret GitHub Gist.
+            </div>
+            <div className={s.gistUrl}>
+              <a href={modal.url} target="_blank" rel="noopener noreferrer">
+                {modal.url}
+              </a>
+            </div>
+            <div className={s.actions}>
+              <button
+                className={s.btnCancel}
+                onClick={() => { navigator.clipboard.writeText(modal.url); setCopied(true) }}
+              >
+                {copied ? '✓ Copied' : 'Copy URL'}
+              </button>
+              <button className={s.btnConfirm} onClick={onCancel}>Done</button>
             </div>
           </>
         )}

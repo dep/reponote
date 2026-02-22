@@ -89,6 +89,64 @@ export async function saveNote(config, path, content, sha = null, message = null
   )
 }
 
+// Get commit history for a single file
+export async function getNoteCommits(config, path) {
+  const { pat, owner, repo } = config
+  const data = await ghFetch(
+    `${BASE}/repos/${owner}/${repo}/commits?path=${encodeURIComponent(path)}&per_page=50`,
+    { headers: headers(pat) }
+  )
+  return data.map(item => ({
+    sha:     item.sha.slice(0, 7),
+    message: item.commit.message.split('\n')[0],
+    author:  item.commit.author.name,
+    date:    item.commit.author.date,
+  }))
+}
+
+// Rename/move a note: create at newPath then delete oldPath
+export async function renameNote(config, oldPath, newPath, content, oldSha) {
+  const createResult = await saveNote(config, newPath, content, null, `Rename ${oldPath} → ${newPath}`)
+  const newSha = createResult.content.sha
+  await deleteNote(config, oldPath, oldSha)
+  return newSha
+}
+
+// Publish note as a secret GitHub Gist, returns the html_url
+export async function publishGist(config, path, content) {
+  const { pat } = config
+  const filename = path.split('/').pop()
+  try {
+    const data = await ghFetch(`${BASE}/gists`, {
+      method: 'POST',
+      headers: { ...headers(pat), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        description: `Published from RepoNote: ${path}`,
+        public: false,
+        files: { [filename]: { content } },
+      }),
+    })
+    return data.html_url
+  } catch (e) {
+    if (e.status === 404) {
+      throw new Error('Gist creation failed — your Personal Access Token needs the "gist" scope. Update your token at github.com/settings/tokens.')
+    }
+    throw e
+  }
+}
+
+// Search for notes containing a given hashtag using GitHub code search
+export async function searchNotesByTag(config, tag) {
+  const { pat, owner, repo } = config
+  // Search for the literal tag string within .md files in this repo
+  const q = encodeURIComponent(`${tag} repo:${owner}/${repo} extension:md`)
+  const data = await ghFetch(
+    `${BASE}/search/code?q=${q}&per_page=30`,
+    { headers: headers(pat) }
+  )
+  return data.items.map(item => ({ path: item.path, sha: item.sha }))
+}
+
 // Delete a note (sha of the blob is required by GitHub)
 export async function deleteNote(config, path, sha) {
   const { pat, owner, repo, branch } = config

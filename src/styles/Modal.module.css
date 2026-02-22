@@ -122,3 +122,19 @@
 .btnDiscard:hover:not(:disabled) {
   background: rgba(239, 68, 68, 0.1);
 }
+
+.gistUrl {
+  padding: 10px 12px;
+  background: var(--color-surface2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gistUrl a {
+  color: var(--color-accent-h);
+}
