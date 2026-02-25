@@ -8,6 +8,7 @@ import Toolbar from './components/Toolbar.jsx'
 import EditorPane from './components/EditorPane.jsx'
 import Modal from './components/Modal.jsx'
 import CommandPalette from './components/CommandPalette.jsx'
+import { Analytics } from "@vercel/analytics/react"
 import s from './styles/App.module.css'
 
 export default function App() {
@@ -623,6 +624,7 @@ export default function App() {
           onClose={() => setPaletteOpen(false)}
         />
       )}
+      <Analytics />
     </div>
   )
 }
