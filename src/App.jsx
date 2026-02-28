@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { loadConfig, clearConfig, saveConfig } from './storage.js'
 import { listNotes, getNote, saveNote, deleteNote, getNoteCommits, renameNote, publishGist, searchNotesByTag } from './github.js'
+import { downloadFile, downloadFolder } from './download.js'
 import { buildHash, parseHash } from './permalink.js'
 import ConfigScreen from './components/ConfigScreen.jsx'
 import Sidebar from './components/Sidebar.jsx'
@@ -516,6 +517,32 @@ export default function App() {
     }
   }
 
+  // ── Download file / folder ────────────────────────────────────────────────
+
+  async function handleDownloadFile(path) {
+    setStatus({ type: 'loading', message: 'Preparing download…' })
+    try {
+      await downloadFile(config, path, noteCache)
+      setStatus({ type: 'success', message: 'Downloaded.' })
+      setTimeout(() => setStatus({ type: 'idle', message: '' }), 2500)
+    } catch (e) {
+      setStatus({ type: 'error', message: e.message })
+    }
+  }
+
+  async function handleDownloadFolder(folderPath) {
+    setStatus({ type: 'loading', message: 'Preparing ZIP…' })
+    try {
+      await downloadFolder(config, folderPath, notes, noteCache, (fetched, total) => {
+        setStatus({ type: 'loading', message: `Fetching ${fetched}/${total} files…` })
+      })
+      setStatus({ type: 'success', message: 'ZIP downloaded.' })
+      setTimeout(() => setStatus({ type: 'idle', message: '' }), 2500)
+    } catch (e) {
+      setStatus({ type: 'error', message: e.message })
+    }
+  }
+
   // ── Disconnect ────────────────────────────────────────────────────────────
 
   function handleDisconnect() {
@@ -577,6 +604,8 @@ export default function App() {
           onSelect={handleSelectNoteGuarded}
           loading={loadingNotes}
           searchRef={searchRef}
+          onDownloadFile={handleDownloadFile}
+          onDownloadFolder={handleDownloadFolder}
         />
 
         <EditorPane

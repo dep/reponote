@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import NoteItem from './NoteItem.jsx'
+import ContextMenu from './ContextMenu.jsx'
 import s from '../styles/Sidebar.module.css'
 
 // Build a nested tree from a flat list of note paths.
@@ -69,10 +70,18 @@ function buildTree(notes, noteMeta) {
 }
 
 // Recursive folder component
-function FolderNode({ folder, depth, collapsed, onToggle, selectedPath, onSelect, noteMeta }) {
+function FolderNode({ folder, depth, collapsed, onToggle, selectedPath, onSelect, noteMeta, onDownloadFile, onDownloadFolder }) {
   const isCollapsed = collapsed.has(folder.fullPath)
   const hasRecent = Object.keys(noteMeta).some(p => p.startsWith(folder.fullPath + '/'))
   const indent = depth * 12
+
+  const folderMenuItems = [
+    {
+      label: 'Download as ZIP',
+      icon: '↓',
+      action: () => onDownloadFolder?.(folder.fullPath),
+    },
+  ]
 
   return (
     <div className={s.folderGroup}>
@@ -92,6 +101,7 @@ function FolderNode({ folder, depth, collapsed, onToggle, selectedPath, onSelect
         </svg>
         <span className={s.folderName}>{folder.name}</span>
         {hasRecent && <span className={s.folderDot} />}
+        <ContextMenu items={folderMenuItems} className={s.contextMenu} />
       </div>
 
       {/* Folder contents (notes + subfolders) */}
@@ -108,6 +118,8 @@ function FolderNode({ folder, depth, collapsed, onToggle, selectedPath, onSelect
               selectedPath={selectedPath}
               onSelect={onSelect}
               noteMeta={noteMeta}
+              onDownloadFile={onDownloadFile}
+              onDownloadFolder={onDownloadFolder}
             />
           ))}
           {/* Then notes */}
@@ -118,6 +130,7 @@ function FolderNode({ folder, depth, collapsed, onToggle, selectedPath, onSelect
               depth={depth + 1}
               isSelected={note.path === selectedPath}
               onClick={() => onSelect(note.path)}
+              menuItems={onDownloadFile ? [{ label: 'Download', icon: '↓', action: () => onDownloadFile(note.path) }] : undefined}
             />
           ))}
         </div>
@@ -136,7 +149,7 @@ function allFolderPaths(folders) {
   return paths
 }
 
-export default function Sidebar({ notes, noteCache, noteMeta, selectedPath, searchQuery, onSearch, onSelect, loading, searchRef }) {
+export default function Sidebar({ notes, noteCache, noteMeta, selectedPath, searchQuery, onSearch, onSelect, loading, searchRef, onDownloadFile, onDownloadFolder }) {
   const [collapsed, setCollapsed] = useState(new Set())
   const initializedRef = useRef(false)
 
@@ -221,6 +234,7 @@ export default function Sidebar({ notes, noteCache, noteMeta, selectedPath, sear
                 isSelected={note.path === selectedPath}
                 onClick={() => onSelect(note.path)}
                 showFolder
+                menuItems={onDownloadFile ? [{ label: 'Download', icon: '↓', action: () => onDownloadFile(note.path) }] : undefined}
               />
             ))
           )
@@ -239,6 +253,8 @@ export default function Sidebar({ notes, noteCache, noteMeta, selectedPath, sear
                 selectedPath={selectedPath}
                 onSelect={onSelect}
                 noteMeta={noteMeta}
+                onDownloadFile={onDownloadFile}
+                onDownloadFolder={onDownloadFolder}
               />
             ))}
             {/* Root-level notes (no folder) after all folders */}
@@ -252,6 +268,7 @@ export default function Sidebar({ notes, noteCache, noteMeta, selectedPath, sear
                 depth={0}
                 isSelected={note.path === selectedPath}
                 onClick={() => onSelect(note.path)}
+                menuItems={onDownloadFile ? [{ label: 'Download', icon: '↓', action: () => onDownloadFile(note.path) }] : undefined}
               />
             ))}
           </>

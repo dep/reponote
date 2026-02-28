@@ -122,6 +122,18 @@
   opacity: 0.7;
 }
 
+.contextMenu {
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity var(--transition);
+  flex-shrink: 0;
+}
+
+.folderRow:hover .contextMenu,
+.folderRow:focus-within .contextMenu {
+  opacity: 1;
+}
+
 .folderContents {
   /* No extra indentation here — NoteItem handles its own via inline paddingLeft */
 }

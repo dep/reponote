@@ -1,6 +1,7 @@
+import ContextMenu from './ContextMenu.jsx'
 import s from '../styles/NoteItem.module.css'
 
-export default function NoteItem({ path, isSelected, onClick, depth = 0, showFolder = false }) {
+export default function NoteItem({ path, isSelected, onClick, depth = 0, showFolder = false, menuItems }) {
   const parts = path.split('/')
   const name = parts.pop().replace(/\.md$/, '')
   const folder = parts.join('/')
@@ -12,8 +13,15 @@ export default function NoteItem({ path, isSelected, onClick, depth = 0, showFol
       onClick={onClick}
       title={path}
     >
-      <span className={s.name}>{name}</span>
-      {showFolder && folder && <span className={s.path}>{folder}</span>}
+      <div className={s.row}>
+        <div className={s.nameBlock}>
+          <span className={s.name}>{name}</span>
+          {showFolder && folder && <span className={s.path}>{folder}</span>}
+        </div>
+        {menuItems && (
+          <ContextMenu items={menuItems} className={s.contextMenu} />
+        )}
+      </div>
     </div>
   )
 }
