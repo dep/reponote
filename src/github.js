@@ -1,11 +1,12 @@
 const BASE = 'https://api.github.com'
 
 function headers(pat) {
-  return {
-    Authorization: `Bearer ${pat}`,
+  const h = {
     Accept: 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28',
   }
+  if (pat) h.Authorization = `Bearer ${pat}`
+  return h
 }
 
 async function ghFetch(url, options = {}) {
@@ -29,8 +30,8 @@ function decodeBase64(b64) {
   return decodeURIComponent(escape(atob(b64.replace(/\n/g, ''))))
 }
 
-// List all .md files in the repo
-export async function listNotes(config) {
+// List files in the repo. Pass allFiles=true to include all file types.
+export async function listNotes(config, { allFiles = false } = {}) {
   const { pat, owner, repo, branch } = config
 
   // Step 1: resolve branch → tree SHA
@@ -51,7 +52,7 @@ export async function listNotes(config) {
   }
 
   return treeData.tree
-    .filter(item => item.type === 'blob' && item.path.endsWith('.md'))
+    .filter(item => item.type === 'blob' && (allFiles || item.path.endsWith('.md')))
     .map(item => ({ path: item.path, sha: item.sha }))
     .sort((a, b) => a.path.localeCompare(b.path))
 }

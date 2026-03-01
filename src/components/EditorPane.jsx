@@ -39,6 +39,7 @@ export default function EditorPane({
   }
 
   const cached = noteCache[selectedPath]
+  const isMarkdown = selectedPath.endsWith('.md')
 
   if (!cached && !noteError) {
     return (
@@ -76,7 +77,13 @@ export default function EditorPane({
         </div>
       )}
 
-      {cached && mode === 'view' && (
+      {cached && !isMarkdown && (
+        <div className={s.viewStack}>
+          <pre className={s.rawViewer}>{cached.content}</pre>
+        </div>
+      )}
+
+      {cached && isMarkdown && mode === 'view' && (
         <div className={s.viewStack}>
           <MarkdownViewer content={cached.content} notes={notes} onNavigate={onNavigate} onTagClick={onTagClick} />
           {backlinks.length > 0 && (
@@ -101,7 +108,7 @@ export default function EditorPane({
         </div>
       )}
 
-      {cached && mode === 'edit' && (
+      {cached && isMarkdown && mode === 'edit' && (
         <MarkdownEditor
           content={editContent}
           onChange={onEditChange}

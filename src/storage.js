@@ -1,8 +1,9 @@
 const KEYS = {
-  PAT:    'reponote_pat',
-  OWNER:  'reponote_owner',
-  REPO:   'reponote_repo',
-  BRANCH: 'reponote_branch',
+  PAT:       'reponote_pat',
+  OWNER:     'reponote_owner',
+  REPO:      'reponote_repo',
+  BRANCH:    'reponote_branch',
+  ALL_FILES: 'reponote_all_files',
 }
 
 export function loadConfig() {
@@ -23,4 +24,12 @@ export function saveConfig({ pat, owner, repo, branch }) {
 
 export function clearConfig() {
   Object.values(KEYS).forEach(k => localStorage.removeItem(k))
+}
+
+export function loadShowAllFiles() {
+  return localStorage.getItem(KEYS.ALL_FILES) === 'true'
+}
+
+export function saveShowAllFiles(value) {
+  localStorage.setItem(KEYS.ALL_FILES, value ? 'true' : 'false')
 }

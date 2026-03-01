@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { loadConfig, clearConfig, saveConfig } from './storage.js'
+import { loadConfig, clearConfig, saveConfig, loadShowAllFiles, saveShowAllFiles } from './storage.js'
 import { listNotes, getNote, saveNote, deleteNote, getNoteCommits, renameNote, publishGist, searchNotesByTag } from './github.js'
 import { downloadFile, downloadFolder } from './download.js'
 import { buildHash, parseHash } from './permalink.js'
@@ -14,6 +14,7 @@ import s from './styles/App.module.css'
 
 export default function App() {
   const [config, setConfig] = useState(loadConfig)
+  const [showAllFiles, setShowAllFiles] = useState(loadShowAllFiles)
 
   // Notes list
   const [notes, setNotes] = useState([])
@@ -68,7 +69,8 @@ export default function App() {
   // Ref for the sidebar search input (⌘F focuses it)
   const searchRef = useRef(null)
 
-  const isConfigured = config.pat && config.owner && config.repo
+  const isConfigured = config.owner && config.repo
+  const readOnly = !config.pat
 
   // ── Permalink — write hash whenever repo/file selection changes ───────────
 
@@ -110,18 +112,12 @@ export default function App() {
       return
     }
 
-    // Repo in hash differs from stored config — apply it if we have a PAT
-    // (we can't get the PAT from the hash for security reasons)
-    if (config.pat) {
-      const merged = { ...config, owner, repo, branch }
-      saveConfig(merged)
-      setConfig(merged)
-      if (filePath) setPendingHashFile(filePath)
-    }
-    // If no PAT, the ConfigScreen will show — the hash sets owner/repo/branch as hints
-    else {
-      setHashHints({ owner, repo, branch })
-    }
+    // Repo in hash differs from stored config — apply it.
+    // If we have a PAT, carry it forward. If not, load read-only.
+    const merged = { pat: config.pat ?? '', owner, repo, branch }
+    saveConfig(merged)
+    setConfig(merged)
+    if (filePath) setPendingHashFile(filePath)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -171,7 +167,7 @@ export default function App() {
   //   2. ⌘N firing browser new-window — preventDefault must run before any guards
   const shortcutStateRef = useRef({})
   shortcutStateRef.current = {
-    mode, selectedPath, isConfigured,
+    mode, selectedPath, isConfigured, readOnly,
     handleSave, handleToggleMode, openDeleteModal,
   }
 
@@ -180,7 +176,7 @@ export default function App() {
       const mod = e.metaKey || e.ctrlKey
       if (!mod) return
 
-      const { mode, selectedPath, isConfigured,
+      const { mode, selectedPath, isConfigured, readOnly,
               handleSave, handleToggleMode, openDeleteModal } = shortcutStateRef.current
 
       const tag = document.activeElement?.tagName
@@ -206,13 +202,13 @@ export default function App() {
         if (isConfigured) setPaletteOpen(p => !p)
       } else if (key === 'n' && !inText) {
         e.preventDefault()
-        if (isConfigured) setModal({ type: 'new' })
+        if (isConfigured && !readOnly) setModal({ type: 'new' })
       } else if (key === 'e' && selectedPath) {
         e.preventDefault()
-        handleToggleMode()
+        if (!readOnly) handleToggleMode()
       } else if ((key === 'Backspace' || key === 'Delete') && !inText && selectedPath) {
         e.preventDefault()
-        openDeleteModal()
+        if (!readOnly) openDeleteModal()
       }
     }
 
@@ -222,11 +218,11 @@ export default function App() {
 
   // ── Fetch note list ───────────────────────────────────────────────────────
 
-  const fetchNoteList = useCallback(async (cfg = config) => {
+  const fetchNoteList = useCallback(async (cfg = config, allFiles = showAllFiles) => {
     setLoadingNotes(true)
     setStatus({ type: 'loading', message: 'Loading notes…' })
     try {
-      const list = await listNotes(cfg)
+      const list = await listNotes(cfg, { allFiles })
       setNotes(list)
       setStatus({ type: 'idle', message: '' })
     } catch (e) {
@@ -234,7 +230,7 @@ export default function App() {
     } finally {
       setLoadingNotes(false)
     }
-  }, [config])
+  }, [config, showAllFiles])
 
   useEffect(() => {
     if (isConfigured) fetchNoteList()
@@ -508,6 +504,10 @@ export default function App() {
   // ── Tag search ────────────────────────────────────────────────────────────
 
   async function handleTagClick(tag) {
+    if (readOnly) {
+      setTagResults({ tag, results: [], loading: false, error: 'Tag search requires a Personal Access Token.' })
+      return
+    }
     setTagResults({ tag, results: [], loading: true, error: null })
     try {
       const results = await searchNotesByTag(config, tag)
@@ -541,6 +541,15 @@ export default function App() {
     } catch (e) {
       setStatus({ type: 'error', message: e.message })
     }
+  }
+
+  // ── File filter toggle ────────────────────────────────────────────────────
+
+  function handleToggleAllFiles() {
+    const next = !showAllFiles
+    setShowAllFiles(next)
+    saveShowAllFiles(next)
+    fetchNoteList(config, next)
   }
 
   // ── Disconnect ────────────────────────────────────────────────────────────
@@ -583,6 +592,9 @@ export default function App() {
         selectedPath={selectedPath}
         mode={mode}
         status={status}
+        readOnly={readOnly}
+        showAllFiles={showAllFiles}
+        onToggleAllFiles={handleToggleAllFiles}
         onNewNote={() => setModal({ type: 'new' })}
         onDelete={openDeleteModal}
         onToggleMode={handleToggleMode}
