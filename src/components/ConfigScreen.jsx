@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { saveConfig } from '../storage.js'
+import { saveConfig, loadConnections, saveConnection, deleteConnection } from '../storage.js'
 import { listNotes } from '../github.js'
 import s from '../styles/ConfigScreen.module.css'
 
@@ -25,14 +25,19 @@ function parseGitHubUrl(raw) {
 
 export default function ConfigScreen({ onConnect, hints }) {
   const [tab, setTab] = useState('pat') // 'pat' | 'url'
+  const [connections, setConnections] = useState(loadConnections)
+  const [editingId, setEditingId] = useState(null)
+  const [editingLabel, setEditingLabel] = useState('')
 
   // PAT tab state
   const [form, setForm] = useState({
-    pat: '',
+    pat: hints?.pat ?? '',
     owner: hints?.owner ?? '',
     repo: hints?.repo ?? '',
     branch: hints?.branch ?? 'main',
   })
+  const [connLabel, setConnLabel] = useState('')
+  const [savedMsg, setSavedMsg] = useState(false)
 
   // URL tab state
   const [repoUrl, setRepoUrl] = useState(
@@ -46,6 +51,46 @@ export default function ConfigScreen({ onConnect, hints }) {
 
   function set(key) {
     return e => setForm(f => ({ ...f, [key]: e.target.value }))
+  }
+
+  function handleSaveConnection() {
+    if (!form.pat || !form.owner || !form.repo) return
+    const id = `${form.owner}/${form.repo}`
+    const label = connLabel.trim() || `${form.owner}/${form.repo}`
+    const conn = { id, label, ...form }
+    saveConnection(conn)
+    setConnections(loadConnections())
+    setConnLabel('')
+    setSavedMsg(true)
+    setTimeout(() => setSavedMsg(false), 2000)
+  }
+
+  function handleDeleteConnection(id) {
+    deleteConnection(id)
+    setConnections(loadConnections())
+  }
+
+  function handleStartEdit(conn) {
+    setEditingId(conn.id)
+    setEditingLabel(conn.label)
+  }
+
+  function handleSaveEdit() {
+    if (!editingId) return
+    const connections = loadConnections()
+    const conn = connections.find(c => c.id === editingId)
+    if (conn) {
+      conn.label = editingLabel.trim() || conn.label
+      localStorage.setItem('reponote_connections', JSON.stringify(connections))
+      setConnections(connections)
+    }
+    setEditingId(null)
+    setEditingLabel('')
+  }
+
+  function handleCancelEdit() {
+    setEditingId(null)
+    setEditingLabel('')
   }
 
   async function handleTest() {
@@ -107,6 +152,79 @@ export default function ConfigScreen({ onConnect, hints }) {
           <span className={s.logoIcon}>📝</span>
           <span className={s.logoText}>RepoNote</span>
         </div>
+
+        {connections.length > 0 && (
+          <div className={s.savedSection}>
+            <div className={s.savedLabel}>Saved connections</div>
+            <div className={s.savedList}>
+              {connections.map(conn => (
+                <div key={conn.id} className={s.savedItem}>
+                  {editingId === conn.id ? (
+                    <div className={s.savedItemEdit}>
+                      <input
+                        className={s.input}
+                        type="text"
+                        value={editingLabel}
+                        onChange={e => setEditingLabel(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') handleSaveEdit()
+                          if (e.key === 'Escape') handleCancelEdit()
+                        }}
+                        autoFocus
+                      />
+                      <div className={s.savedItemEditActions}>
+                        <button
+                          className={s.btnEditSave}
+                          onClick={handleSaveEdit}
+                          title="Save name"
+                        >
+                          ✓
+                        </button>
+                        <button
+                          className={s.btnEditCancel}
+                          onClick={handleCancelEdit}
+                          title="Cancel"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className={s.savedItemInfo}>
+                        <span className={s.savedItemLabel}>{conn.label}</span>
+                        <span className={s.savedItemMeta}>{conn.owner}/{conn.repo} · {conn.branch}</span>
+                      </div>
+                      <div className={s.savedItemActions}>
+                        <button
+                          className={s.btnConnect}
+                          onClick={() => { saveConfig(conn); onConnect(conn) }}
+                        >
+                          Connect
+                        </button>
+                        <button
+                          className={s.btnEdit}
+                          onClick={() => handleStartEdit(conn)}
+                          title="Edit connection name"
+                        >
+                          ✎
+                        </button>
+                        <button
+                          className={s.btnDelete}
+                          onClick={() => handleDeleteConnection(conn.id)}
+                          title="Remove saved connection"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className={s.savedDivider} />
+          </div>
+        )}
 
         <div className={s.tabs}>
           <button
@@ -205,6 +323,25 @@ export default function ConfigScreen({ onConnect, hints }) {
                 </button>
                 <button className={s.btnPrimary} onClick={handleConnect}>
                   Connect
+                </button>
+              </div>
+
+              <div className={s.saveRow}>
+                <input
+                  className={s.input}
+                  type="text"
+                  placeholder={form.owner && form.repo ? `${form.owner}/${form.repo}` : 'Connection name (optional)'}
+                  value={connLabel}
+                  onChange={e => setConnLabel(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleSaveConnection()}
+                />
+                <button
+                  className={s.btnSave}
+                  onClick={handleSaveConnection}
+                  disabled={!form.pat || !form.owner || !form.repo}
+                  title="Save this connection for later"
+                >
+                  {savedMsg ? 'Saved!' : 'Save'}
                 </button>
               </div>
             </div>

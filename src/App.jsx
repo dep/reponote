@@ -590,7 +590,7 @@ export default function App() {
   if (!isConfigured) {
     return (
       <ConfigScreen
-        hints={hashHints}
+        hints={{ pat: config.pat, ...hashHints }}
         onConnect={(cfg) => {
           setConfig(cfg)
           if (pendingHashFile) {
