@@ -101,7 +101,7 @@ export default function EditorPane({
         </div>
       )}
 
-      {cached && !isMarkdown && (
+      {cached && !isMarkdown && mode === 'view' && (
         <div className={s.viewStack}>
           {highlightedRaw
             ? <pre className={`${s.rawViewer} hljs`} dangerouslySetInnerHTML={{ __html: highlightedRaw }} />
@@ -135,7 +135,7 @@ export default function EditorPane({
         </div>
       )}
 
-      {cached && isMarkdown && mode === 'edit' && (
+      {cached && mode === 'edit' && (
         <MarkdownEditor
           content={editContent}
           onChange={onEditChange}
@@ -143,6 +143,7 @@ export default function EditorPane({
           onCancel={onCancel}
           isSaving={isSaving}
           notes={notes}
+          isMarkdown={isMarkdown}
           previewOpen={previewOpen}
           onPreviewToggle={onPreviewToggle}
         />

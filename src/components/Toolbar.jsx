@@ -8,11 +8,13 @@ export default function Toolbar({
   onNewNote,
   onDisconnect,
   onOpenPalette,
+  selectedPath,
+  mode,
+  onToggleMode,
 }) {
   const dotClass = status.type === 'idle' ? '' : s[status.type]
   const isMac = typeof navigator !== 'undefined' && navigator.platform?.toUpperCase().includes('MAC')
   const mod = isMac ? '⌘' : 'Ctrl'
-
   return (
     <div className={s.toolbar}>
       <div className={s.logo}>
@@ -23,14 +25,20 @@ export default function Toolbar({
       <div className={s.divider} />
 
       {!readOnly && (
-        <button className={s.btnNew} onClick={onNewNote} title={`New note (${mod}N)`}>
-          + New note <kbd className={s.kbd}>{mod}N</kbd>
+        <button className={s.btnNew} onClick={onNewNote} title={`New file (${mod}N)`}>
+          + New file <kbd className={s.kbd}>{mod}N</kbd>
         </button>
       )}
 
       <button className={s.btnIcon} onClick={onOpenPalette} title={`Go to file (${mod}K)`}>
         🔍 Go to file <kbd className={s.kbd}>{mod}K</kbd>
       </button>
+
+      {selectedPath && !readOnly && (
+        <button className={s.btnIcon} onClick={onToggleMode} title={`Toggle edit/view (${mod}E)`}>
+          {mode === 'view' ? 'Edit' : 'View'} <kbd className={s.kbd}>{mod}E</kbd>
+        </button>
+      )}
 
       {readOnly && (
         <span className={s.readOnlyBadge} title="No PAT — read-only access">

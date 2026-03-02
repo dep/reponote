@@ -215,7 +215,7 @@ export default function Sidebar({ notes, noteCache, noteMeta, selectedPath, sear
   const noteMenuItems = useCallback((path) => {
     const isMd = path.endsWith('.md')
     const items = []
-    if (isMd && onEdit)    items.push({ label: 'Edit',     action: () => onEdit(path) })
+    if (onEdit)            items.push({ label: 'Edit',     action: () => onEdit(path) })
     if (onHistory)         items.push({ label: 'History',  action: () => onHistory(path) })
     if (isMd && onRename)  items.push({ label: 'Rename',   action: () => onRename(path) })
     if (isMd && onGist)    items.push({ label: 'Gist',     action: () => onGist(path) })

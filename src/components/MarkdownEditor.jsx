@@ -27,7 +27,7 @@ function fuzzyMatch(candidate, query) {
   return true
 }
 
-export default function MarkdownEditor({ content, onChange, onSave, onCancel, isSaving, notes = [], previewOpen, onPreviewToggle }) {
+export default function MarkdownEditor({ content, onChange, onSave, onCancel, isSaving, notes = [], isMarkdown = true, previewOpen, onPreviewToggle }) {
   const ref = useRef(null)
 
   // Autocomplete state
@@ -48,6 +48,22 @@ export default function MarkdownEditor({ content, onChange, onSave, onCancel, is
   const acMatches = acQuery !== null
     ? uniqueNames.filter(name => fuzzyMatch(name, acQuery)).slice(0, 8)
     : []
+
+  // Insert text preserving the browser's native undo stack via execCommand.
+  // Also syncs React state so saves always reflect what's on screen.
+  function insertText(el, text) {
+    el.focus()
+    if (document.execCommand) {
+      document.execCommand('insertText', false, text)
+    } else {
+      const start = el.selectionStart
+      const end = el.selectionEnd
+      el.value = el.value.substring(0, start) + text + el.value.substring(end)
+      el.selectionStart = el.selectionEnd = start + text.length
+    }
+    // Keep React state in sync regardless of which path ran
+    onChange(el.value)
+  }
 
   function handleChange(e) {
     const val = e.target.value
@@ -91,18 +107,13 @@ export default function MarkdownEditor({ content, onChange, onSave, onCancel, is
   function applyAutocomplete(name) {
     const el = ref.current
     const cursor = el.selectionStart
-    const text = content
-    const before = text.slice(0, cursor)
+    const before = content.slice(0, cursor)
     const openIdx = before.lastIndexOf('[[')
-    const newText = text.slice(0, openIdx) + '[[' + name + ']]' + text.slice(cursor)
-    onChange(newText)
+    // Select from [[ to cursor, then replace with the completed link
+    el.selectionStart = openIdx
+    el.selectionEnd = cursor
+    insertText(el, '[[' + name + ']]')
     setAcQuery(null)
-    // Move cursor after the inserted link
-    const newCursor = openIdx + 2 + name.length + 2
-    requestAnimationFrame(() => {
-      el.selectionStart = el.selectionEnd = newCursor
-      el.focus()
-    })
   }
 
   function handleKeyDown(e) {
@@ -135,15 +146,53 @@ export default function MarkdownEditor({ content, onChange, onSave, onCancel, is
       }
     }
 
-    // Allow Tab to insert spaces instead of focus-jumping (only when ac closed)
+    // Tab / Shift-Tab: indent or unindent affected lines by 2 spaces
     if (e.key === 'Tab') {
       e.preventDefault()
       const el = ref.current
       const start = el.selectionStart
       const end = el.selectionEnd
-      onChange(content.substring(0, start) + '  ' + content.substring(end))
+      const indent = '  '
+
+      if (start === end && !e.shiftKey) {
+        // No selection, no shift — insert indent at cursor
+        insertText(el, indent)
+        requestAnimationFrame(() => { el.selectionStart = el.selectionEnd = start + indent.length })
+        return
+      }
+
+      // Find the full extent of all affected lines.
+      // When there's no selection, extend to end of current line so Shift-Tab
+      // unindents the whole line rather than just the text up to the cursor.
+      const lineStart = content.lastIndexOf('\n', start - 1) + 1
+      const rawEnd = start === end ? (content.indexOf('\n', end) + 1 || content.length) : end
+      const lineEnd = rawEnd > lineStart && content[rawEnd - 1] === '\n' ? rawEnd - 1 : rawEnd
+      const lines = content.substring(lineStart, lineEnd).split('\n')
+
+      let newSelStart = start
+      let selAdjustment = 0
+
+      const newLines = lines.map((line, i) => {
+        if (e.shiftKey) {
+          const removed = line.match(/^ {1,2}/)?.[0].length ?? 0
+          if (removed === 0) return line
+          if (i === 0) newSelStart = Math.max(lineStart, newSelStart - removed)
+          selAdjustment -= removed
+          return line.slice(removed)
+        } else {
+          if (i === 0) newSelStart += indent.length
+          selAdjustment += indent.length
+          return indent + line
+        }
+      })
+
+      el.selectionStart = lineStart
+      el.selectionEnd = lineEnd
+      insertText(el, newLines.join('\n'))
+      // Restore selection after React re-render from onChange
       requestAnimationFrame(() => {
-        el.selectionStart = el.selectionEnd = start + 2
+        el.selectionStart = newSelStart
+        el.selectionEnd = end + selAdjustment
       })
     }
   }
@@ -161,7 +210,7 @@ export default function MarkdownEditor({ content, onChange, onSave, onCancel, is
           spellCheck={false}
         />
         <div className={s.editorActions}>
-          <span className={s.editorHint}>⌘S / Ctrl+S to save · type [[ to link a note</span>
+          <span className={s.editorHint}>{isMarkdown ? '⌘S / Ctrl+S to save · type [[ to link a note' : '⌘S / Ctrl+S to save'}</span>
           <div className={s.spacer} />
           <button className={s.btnCancel} onClick={onCancel} disabled={isSaving}>
             Cancel
@@ -172,8 +221,8 @@ export default function MarkdownEditor({ content, onChange, onSave, onCancel, is
         </div>
       </div>
 
-      {/* Collapsed toggle tab — only shown when preview is closed */}
-      {!previewOpen && (
+      {/* Collapsed toggle tab — only shown when preview is closed (markdown only) */}
+      {isMarkdown && !previewOpen && (
         <button
           className={s.previewToggle}
           onClick={() => onPreviewToggle(true)}

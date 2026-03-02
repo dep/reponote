@@ -611,6 +611,9 @@ export default function App() {
         onNewNote={() => setModal({ type: 'new' })}
         onDisconnect={handleDisconnect}
         onOpenPalette={() => setPaletteOpen(true)}
+        selectedPath={selectedPath}
+        mode={mode}
+        onToggleMode={handleToggleMode}
       />
 
       <div className={`${s.body} ${sidebarOpen ? '' : s.bodySidebarCollapsed}`}>
