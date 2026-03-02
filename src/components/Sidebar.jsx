@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import NoteItem from './NoteItem.jsx'
 import ContextMenu from './ContextMenu.jsx'
 import s from '../styles/Sidebar.module.css'
@@ -69,19 +69,31 @@ function buildTree(notes, noteMeta) {
   }
 }
 
+function FolderIcon({ className }) {
+  return (
+    <svg className={className} width="13" height="13" viewBox="0 0 16 16" fill="none">
+      <path d="M1 4a1 1 0 011-1h4l1.5 2H14a1 1 0 011 1v7a1 1 0 01-1 1H2a1 1 0 01-1-1V4z" fill="currentColor" opacity="0.5"/>
+      <path d="M1 6h14v7a1 1 0 01-1 1H2a1 1 0 01-1-1V6z" fill="currentColor"/>
+    </svg>
+  )
+}
+
+function buildFolderMenuItems(prefix, onNewNote, onDownloadFolder) {
+  return [
+    ...(onNewNote ? [
+      { label: 'New file',   action: () => onNewNote(prefix, false) },
+      { label: 'New folder', action: () => onNewNote(prefix, true) },
+    ] : []),
+    ...(onDownloadFolder ? [{ label: 'Download as ZIP', action: () => onDownloadFolder(prefix.replace(/\/$/, '')) }] : []),
+  ]
+}
+
 // Recursive folder component
-function FolderNode({ folder, depth, collapsed, onToggle, selectedPath, onSelect, noteMeta, onDownloadFile, onDownloadFolder }) {
+function FolderNode({ folder, depth, collapsed, onToggle, selectedPath, onSelect, noteMeta, onDownloadFile, onDownloadFolder, onNewNote, noteMenuItems }) {
   const isCollapsed = collapsed.has(folder.fullPath)
   const hasRecent = Object.keys(noteMeta).some(p => p.startsWith(folder.fullPath + '/'))
   const indent = depth * 12
-
-  const folderMenuItems = [
-    {
-      label: 'Download as ZIP',
-      icon: '↓',
-      action: () => onDownloadFolder?.(folder.fullPath),
-    },
-  ]
+  const folderMenuItems = buildFolderMenuItems(folder.fullPath + '/', onNewNote, onDownloadFolder)
 
   return (
     <div className={s.folderGroup}>
@@ -95,10 +107,7 @@ function FolderNode({ folder, depth, collapsed, onToggle, selectedPath, onSelect
         <svg className={`${s.chevron} ${isCollapsed ? s.chevronCollapsed : ''}`} width="10" height="10" viewBox="0 0 10 10" fill="none">
           <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
-        <svg className={`${s.folderIcon} ${!isCollapsed ? s.folderIconOpen : ''}`} width="13" height="13" viewBox="0 0 16 16" fill="none">
-          <path d="M1 4a1 1 0 011-1h4l1.5 2H14a1 1 0 011 1v7a1 1 0 01-1 1H2a1 1 0 01-1-1V4z" fill="currentColor" opacity="0.5"/>
-          <path d="M1 6h14v7a1 1 0 01-1 1H2a1 1 0 01-1-1V6z" fill="currentColor"/>
-        </svg>
+        <FolderIcon className={`${s.folderIcon} ${!isCollapsed ? s.folderIconOpen : ''}`} />
         <span className={s.folderName}>{folder.name}</span>
         {hasRecent && <span className={s.folderDot} />}
         <ContextMenu items={folderMenuItems} className={s.contextMenu} />
@@ -120,6 +129,8 @@ function FolderNode({ folder, depth, collapsed, onToggle, selectedPath, onSelect
               noteMeta={noteMeta}
               onDownloadFile={onDownloadFile}
               onDownloadFolder={onDownloadFolder}
+              onNewNote={onNewNote}
+              noteMenuItems={noteMenuItems}
             />
           ))}
           {/* Then notes */}
@@ -130,7 +141,7 @@ function FolderNode({ folder, depth, collapsed, onToggle, selectedPath, onSelect
               depth={depth + 1}
               isSelected={note.path === selectedPath}
               onClick={() => onSelect(note.path)}
-              menuItems={onDownloadFile ? [{ label: 'Download', icon: '↓', action: () => onDownloadFile(note.path) }] : undefined}
+              menuItems={noteMenuItems?.(note.path)}
             />
           ))}
         </div>
@@ -149,7 +160,7 @@ function allFolderPaths(folders) {
   return paths
 }
 
-export default function Sidebar({ notes, noteCache, noteMeta, selectedPath, searchQuery, onSearch, onSelect, loading, searchRef, onDownloadFile, onDownloadFolder }) {
+export default function Sidebar({ notes, noteCache, noteMeta, selectedPath, searchQuery, onSearch, onSelect, loading, searchRef, onDownloadFile, onDownloadFolder, onNewNote, onEdit, onHistory, onRename, onGist, onDelete, repoName, sidebarOpen, onToggleSidebar }) {
   const [collapsed, setCollapsed] = useState(new Set())
   const initializedRef = useRef(false)
 
@@ -201,17 +212,36 @@ export default function Sidebar({ notes, noteCache, noteMeta, selectedPath, sear
     return buildTree(notes, noteMeta)
   }, [notes, noteMeta, isSearching])
 
+  const noteMenuItems = useCallback((path) => {
+    const isMd = path.endsWith('.md')
+    const items = []
+    if (isMd && onEdit)    items.push({ label: 'Edit',     action: () => onEdit(path) })
+    if (onHistory)         items.push({ label: 'History',  action: () => onHistory(path) })
+    if (isMd && onRename)  items.push({ label: 'Rename',   action: () => onRename(path) })
+    if (isMd && onGist)    items.push({ label: 'Gist',     action: () => onGist(path) })
+    if (onDownloadFile)    items.push({ label: 'Download', action: () => onDownloadFile(path) })
+    if (onDelete)          items.push({ label: 'Delete',   action: () => onDelete(path), danger: true })
+    return items.length ? items : undefined
+  }, [onEdit, onHistory, onRename, onGist, onDownloadFile, onDelete])
+
   return (
-    <div className={s.sidebar}>
+    <div className={`${s.sidebar} ${sidebarOpen ? '' : s.sidebarCollapsed}`}>
       <div className={s.search}>
-        <input
-          ref={searchRef}
-          className={s.searchInput}
-          type="search"
-          placeholder="Search notes…"
-          value={searchQuery}
-          onChange={e => onSearch(e.target.value)}
-        />
+        {sidebarOpen && (
+          <input
+            ref={searchRef}
+            className={s.searchInput}
+            type="search"
+            placeholder="Search notes…"
+            value={searchQuery}
+            onChange={e => onSearch(e.target.value)}
+          />
+        )}
+        <button className={s.collapseBtn} onClick={onToggleSidebar} title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className={sidebarOpen ? '' : s.collapseBtnFlipped}>
+            <path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
       </div>
 
       <div className={s.list}>
@@ -234,15 +264,25 @@ export default function Sidebar({ notes, noteCache, noteMeta, selectedPath, sear
                 isSelected={note.path === selectedPath}
                 onClick={() => onSelect(note.path)}
                 showFolder
-                menuItems={onDownloadFile ? [{ label: 'Download', icon: '↓', action: () => onDownloadFile(note.path) }] : undefined}
+                menuItems={noteMenuItems(note.path)}
               />
             ))
           )
         ) : notes.length === 0 ? (
           <div className={s.empty}>No markdown files found.</div>
         ) : (
-          // Tree view — folders first, then root-level notes
+          // Tree view — root header, then folders, then root-level notes
           <>
+            <div className={s.rootRow}>
+              <FolderIcon className={s.folderIcon} />
+              <span className={s.rootName}>{repoName ?? 'root'}</span>
+              {(onNewNote || onDownloadFolder) && (
+                <ContextMenu
+                  items={buildFolderMenuItems('', onNewNote, onDownloadFolder)}
+                  className={s.contextMenu}
+                />
+              )}
+            </div>
             {tree.folders.map(folder => (
               <FolderNode
                 key={folder.fullPath}
@@ -255,6 +295,8 @@ export default function Sidebar({ notes, noteCache, noteMeta, selectedPath, sear
                 noteMeta={noteMeta}
                 onDownloadFile={onDownloadFile}
                 onDownloadFolder={onDownloadFolder}
+                onNewNote={onNewNote}
+                noteMenuItems={noteMenuItems}
               />
             ))}
             {/* Root-level notes (no folder) after all folders */}
@@ -268,7 +310,7 @@ export default function Sidebar({ notes, noteCache, noteMeta, selectedPath, sear
                 depth={0}
                 isSelected={note.path === selectedPath}
                 onClick={() => onSelect(note.path)}
-                menuItems={onDownloadFile ? [{ label: 'Download', icon: '↓', action: () => onDownloadFile(note.path) }] : undefined}
+                menuItems={noteMenuItems(note.path)}
               />
             ))}
           </>

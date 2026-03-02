@@ -11,3 +11,7 @@
   overflow: hidden;
   border-top: 1px solid var(--color-border);
 }
+
+.bodySidebarCollapsed {
+  grid-template-columns: 40px 1fr;
+}

@@ -9,7 +9,7 @@ export default function Modal({ modal, onConfirm, onCancel, onUnsavedDiscard, on
 
   useEffect(() => {
     if (modal && inputRef.current) inputRef.current.focus()
-    if (modal?.type === 'new')    setNewPath('')
+    if (modal?.type === 'new')    setNewPath(modal.prefix ?? '')
     if (modal?.type === 'rename') setRenamePath(modal.path ?? '')
     if (modal?.type === 'gist')   setCopied(false)
   }, [modal])
@@ -50,14 +50,16 @@ export default function Modal({ modal, onConfirm, onCancel, onUnsavedDiscard, on
 
         {modal.type === 'new' && (
           <>
-            <div className={s.title}>New note</div>
+            <div className={s.title}>{modal.folderMode ? 'New folder' : 'New note'}</div>
             <div className={s.field}>
               <label className={s.label}>File path</label>
               <input
                 ref={inputRef}
                 className={s.input}
                 type="text"
-                placeholder="folder/my-note.md"
+                placeholder={modal.folderMode
+                  ? (modal.prefix ? `${modal.prefix}subfolder/note.md` : 'folder/note.md')
+                  : (modal.prefix ? `${modal.prefix}note.md` : 'folder/my-note.md')}
                 value={newPath}
                 onChange={e => setNewPath(e.target.value)}
               />

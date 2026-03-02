@@ -3,7 +3,7 @@ import s from '../styles/NoteItem.module.css'
 
 export default function NoteItem({ path, isSelected, onClick, depth = 0, showFolder = false, menuItems }) {
   const parts = path.split('/')
-  const name = parts.pop().replace(/\.md$/, '')
+  const name = parts.pop()
   const folder = parts.join('/')
 
   return (

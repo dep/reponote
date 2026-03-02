@@ -48,7 +48,7 @@ export default function ContextMenu({ items, className }) {
           {items.map((item, i) => (
             <button
               key={i}
-              className={`${s.item} ${item.disabled ? s.itemDisabled : ''}`}
+              className={`${s.item} ${item.disabled ? s.itemDisabled : ''} ${item.danger ? s.itemDanger : ''}`}
               disabled={item.disabled}
               onClick={e => {
                 e.stopPropagation()

@@ -1,25 +1,17 @@
 import s from '../styles/Toolbar.module.css'
 
 export default function Toolbar({
-  selectedPath,
-  mode,
   status,
   readOnly,
   showAllFiles,
   onToggleAllFiles,
   onNewNote,
-  onDelete,
-  onToggleMode,
   onDisconnect,
   onOpenPalette,
-  onOpenHistory,
-  onRename,
-  onPublishGist,
 }) {
   const dotClass = status.type === 'idle' ? '' : s[status.type]
   const isMac = typeof navigator !== 'undefined' && navigator.platform?.toUpperCase().includes('MAC')
   const mod = isMac ? '⌘' : 'Ctrl'
-  const isMarkdown = selectedPath?.endsWith('.md') ?? false
 
   return (
     <div className={s.toolbar}>
@@ -44,36 +36,6 @@ export default function Toolbar({
         <span className={s.readOnlyBadge} title="No PAT — read-only access">
           Read-only
         </span>
-      )}
-
-      {selectedPath && (
-        <>
-          {!readOnly && isMarkdown && (
-            <button className={s.btnIcon} onClick={onToggleMode} title={`Toggle edit/view (${mod}E)`}>
-              {mode === 'view' ? '✏️ Edit' : '👁 View'} <kbd className={s.kbd}>{mod}E</kbd>
-            </button>
-          )}
-          <button className={s.btnIcon} onClick={onOpenHistory} title="Commit history">
-            🕓 History
-          </button>
-          {!readOnly && (
-            <>
-              {isMarkdown && (
-                <>
-                  <button className={s.btnIcon} onClick={onRename} title="Rename or move note">
-                    📁 Rename
-                  </button>
-                  <button className={s.btnIcon} onClick={onPublishGist} title="Publish as secret Gist">
-                    ↑ Gist
-                  </button>
-                </>
-              )}
-              <button className={s.btnDanger} onClick={onDelete} title={`Delete note (${mod}⌫)`}>
-                🗑 Delete
-              </button>
-            </>
-          )}
-        </>
       )}
 
       <div className={s.spacer} />

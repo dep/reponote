@@ -65,6 +65,7 @@ export default function App() {
 
   // Command palette
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
 
   // Ref for the sidebar search input (⌘F focuses it)
   const searchRef = useRef(null)
@@ -249,13 +250,14 @@ export default function App() {
     setEditContent('')
     setNoteError(null)
 
-    if (noteCache[path]) return // already cached
+    if (noteCache[path]) return noteCache[path].content
 
     setStatus({ type: 'loading', message: 'Fetching note…' })
     try {
       const { content, sha } = await getNote(config, path)
       setNoteCache(prev => ({ ...prev, [path]: { content, sha } }))
       setStatus({ type: 'idle', message: '' })
+      return content
     } catch (e) {
       setNoteError(e.message)
       setStatus({ type: 'error', message: e.message })
@@ -428,18 +430,31 @@ export default function App() {
     }
   }
 
-  function openDeleteModal() {
-    if (!selectedPath) return
-    const note = notes.find(n => n.path === selectedPath)
-    const sha = noteCache[selectedPath]?.sha ?? note?.sha
-    setModal({ type: 'delete', path: selectedPath, sha })
+  function openDeleteModal(path = selectedPath) {
+    if (!path) return
+    const note = notes.find(n => n.path === path)
+    const sha = noteCache[path]?.sha ?? note?.sha
+    setModal({ type: 'delete', path, sha })
   }
 
   // ── Rename / move a note ─────────────────────────────────────────────────
 
-  function openRenameModal() {
-    if (!selectedPath) return
-    setModal({ type: 'rename', path: selectedPath })
+  function openRenameModal(path = selectedPath) {
+    if (!path) return
+    setModal({ type: 'rename', path })
+  }
+
+  function handleOpenHistory(path) {
+    handleSelectNoteGuarded(path)
+    setHistoryOpen(true)
+  }
+
+  function handleEditNote(path) {
+    guardUnsaved(async () => {
+      const content = await handleSelectNote(path)
+      setEditContent(content ?? '')
+      setMode('edit')
+    })
   }
 
   async function handleRenameConfirm(rawNewPath) {
@@ -487,12 +502,12 @@ export default function App() {
 
   // ── Publish as Gist ───────────────────────────────────────────────────────
 
-  async function handlePublishGist() {
-    if (!selectedPath) return
-    const content = noteCache[selectedPath]?.content ?? ''
+  async function handlePublishGist(path = selectedPath) {
+    if (!path) return
+    const content = noteCache[path]?.content ?? ''
     setStatus({ type: 'saving', message: 'Publishing gist…' })
     try {
-      const url = await publishGist(config, selectedPath, content)
+      const url = await publishGist(config, path, content)
       setStatus({ type: 'success', message: 'Gist published.' })
       setTimeout(() => setStatus({ type: 'idle', message: '' }), 3000)
       setModal({ type: 'gist', url })
@@ -589,23 +604,16 @@ export default function App() {
   return (
     <div className={s.shell}>
       <Toolbar
-        selectedPath={selectedPath}
-        mode={mode}
         status={status}
         readOnly={readOnly}
         showAllFiles={showAllFiles}
         onToggleAllFiles={handleToggleAllFiles}
         onNewNote={() => setModal({ type: 'new' })}
-        onDelete={openDeleteModal}
-        onToggleMode={handleToggleMode}
         onDisconnect={handleDisconnect}
         onOpenPalette={() => setPaletteOpen(true)}
-        onOpenHistory={() => setHistoryOpen(h => !h)}
-        onRename={openRenameModal}
-        onPublishGist={handlePublishGist}
       />
 
-      <div className={s.body}>
+      <div className={`${s.body} ${sidebarOpen ? '' : s.bodySidebarCollapsed}`}>
         <Sidebar
           notes={notes}
           noteCache={noteCache}
@@ -616,8 +624,17 @@ export default function App() {
           onSelect={handleSelectNoteGuarded}
           loading={loadingNotes}
           searchRef={searchRef}
-          onDownloadFile={handleDownloadFile}
+          onDownloadFile={readOnly ? undefined : handleDownloadFile}
           onDownloadFolder={handleDownloadFolder}
+          onNewNote={readOnly ? undefined : (prefix, folderMode) => setModal({ type: 'new', prefix, folderMode })}
+          onEdit={readOnly ? undefined : handleEditNote}
+          onHistory={handleOpenHistory}
+          onRename={readOnly ? undefined : openRenameModal}
+          onGist={readOnly ? undefined : handlePublishGist}
+          onDelete={readOnly ? undefined : openDeleteModal}
+          repoName={config.repo}
+          sidebarOpen={sidebarOpen}
+          onToggleSidebar={() => setSidebarOpen(o => !o)}
         />
 
         <EditorPane

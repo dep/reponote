@@ -67,6 +67,14 @@
   cursor: default;
 }
 
+.itemDanger {
+  color: var(--color-danger);
+}
+
+.itemDanger:hover:not(.itemDisabled) {
+  background: rgba(239, 68, 68, 0.1);
+}
+
 .itemIcon {
   font-size: 12px;
   line-height: 1;

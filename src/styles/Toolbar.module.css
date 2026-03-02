@@ -61,20 +61,6 @@
   background: var(--color-border);
 }
 
-.btnDanger {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 10px;
-  background: transparent;
-  color: var(--color-danger);
-  font-size: 13px;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-}
-
-.btnDanger:hover:not(:disabled) {
-  background: rgba(239, 68, 68, 0.1);
-}
 
 .readOnlyBadge {
   font-size: 11px;

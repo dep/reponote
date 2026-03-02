@@ -28,8 +28,9 @@ export async function downloadFile(config, path, noteCache) {
 // Download a folder as a .zip file
 // onProgress(fetched, total) is called as files are fetched
 export async function downloadFolder(config, folderPath, notes, noteCache, onProgress) {
-  const prefix = folderPath + '/'
-  const folderNotes = notes.filter(n => n.path.startsWith(prefix))
+  const isRoot = folderPath === ''
+  const prefix = isRoot ? '' : folderPath + '/'
+  const folderNotes = isRoot ? notes : notes.filter(n => n.path.startsWith(prefix))
 
   if (folderNotes.length === 0) return
 
@@ -45,7 +46,7 @@ export async function downloadFolder(config, folderPath, notes, noteCache, onPro
         content = result.content
       }
       // Store with path relative to the folder
-      const relativePath = note.path.slice(prefix.length)
+      const relativePath = isRoot ? note.path : note.path.slice(prefix.length)
       zip.file(relativePath, content)
       fetched++
       onProgress?.(fetched, total)
@@ -53,6 +54,6 @@ export async function downloadFolder(config, folderPath, notes, noteCache, onPro
   )
 
   const blob = await zip.generateAsync({ type: 'blob' })
-  const zipName = folderPath.split('/').pop() + '.zip'
+  const zipName = isRoot ? (config.repo ?? 'notes') + '.zip' : folderPath.split('/').pop() + '.zip'
   triggerDownload(blob, zipName)
 }
