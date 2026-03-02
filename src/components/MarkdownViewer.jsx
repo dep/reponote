@@ -1,9 +1,20 @@
 import { useMemo } from 'react'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
+import hljs from '../highlight.js'
 import s from '../styles/EditorPane.module.css'
 
 marked.setOptions({ breaks: true, gfm: true })
+
+const renderer = new marked.Renderer()
+renderer.code = ({ text, lang }) => {
+  const language = lang && hljs.getLanguage(lang) ? lang : null
+  const highlighted = language
+    ? hljs.highlight(text, { language }).value
+    : hljs.highlightAuto(text).value
+  const cls = language ? ` class="language-${language} hljs"` : ' class="hljs"'
+  return `<pre><code${cls}>${highlighted}</code></pre>`
+}
 
 // Convert [[note name]] into a special anchor before markdown parsing.
 // We use a data-wikilink attribute so we can attach a click handler after render.
@@ -49,8 +60,8 @@ export default function MarkdownViewer({ content, notes = [], onNavigate, onTagC
     if (!content) return ''
     const withLinks = preprocessWikilinks(content, notes)
     const withTags = preprocessHashtags(withLinks)
-    // Parse as markdown, then sanitize — allow data-wikilink / data-tag attrs
-    return DOMPurify.sanitize(marked.parse(withTags), {
+    // Parse as markdown, then sanitize — allow data-* attrs and hljs class names
+    return DOMPurify.sanitize(marked.parse(withTags, { renderer }), {
       ADD_ATTR: ['data-wikilink', 'data-tag'],
     })
   }, [content, notes])

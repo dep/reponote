@@ -1,8 +1,24 @@
+import { useMemo } from 'react'
+import hljs from '../highlight.js'
 import MarkdownViewer from './MarkdownViewer.jsx'
 import MarkdownEditor from './MarkdownEditor.jsx'
 import CommitHistory from './CommitHistory.jsx'
 import TagResults from './TagResults.jsx'
 import s from '../styles/EditorPane.module.css'
+
+// Map file extensions to highlight.js language identifiers
+const EXT_LANG = {
+  js: 'javascript', jsx: 'javascript', ts: 'typescript', tsx: 'typescript',
+  py: 'python', rb: 'ruby', rs: 'rust', go: 'go', java: 'java',
+  c: 'c', cpp: 'cpp', cs: 'csharp', swift: 'swift', kt: 'kotlin',
+  sh: 'bash', bash: 'bash', zsh: 'bash',
+  html: 'html', css: 'css', scss: 'scss',
+  json: 'json', yaml: 'yaml', yml: 'yaml', toml: 'ini',
+  php: 'php',
+  sql: 'sql', graphql: 'graphql',
+  xml: 'xml', svg: 'xml',
+  dockerfile: 'dockerfile',
+}
 
 export default function EditorPane({
   selectedPath,
@@ -40,6 +56,14 @@ export default function EditorPane({
 
   const cached = noteCache[selectedPath]
   const isMarkdown = selectedPath.endsWith('.md')
+
+  const highlightedRaw = useMemo(() => {
+    if (!cached || isMarkdown) return null
+    const ext = selectedPath.split('.').pop().toLowerCase()
+    const lang = EXT_LANG[ext]
+    if (!lang || !hljs.getLanguage(lang)) return null
+    return hljs.highlight(cached.content, { language: lang }).value
+  }, [cached, selectedPath, isMarkdown])
 
   if (!cached && !noteError) {
     return (
@@ -79,7 +103,10 @@ export default function EditorPane({
 
       {cached && !isMarkdown && (
         <div className={s.viewStack}>
-          <pre className={s.rawViewer}>{cached.content}</pre>
+          {highlightedRaw
+            ? <pre className={`${s.rawViewer} hljs`} dangerouslySetInnerHTML={{ __html: highlightedRaw }} />
+            : <pre className={s.rawViewer}>{cached.content}</pre>
+          }
         </div>
       )}
 
