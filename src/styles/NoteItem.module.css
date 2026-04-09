@@ -62,3 +62,20 @@
 .item:focus-within .contextMenu {
   opacity: 1;
 }
+
+/* ── Mobile ──────────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .item {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .name {
+    font-size: 14px;
+  }
+
+  /* Always show context menu on touch */
+  .contextMenu {
+    opacity: 1;
+  }
+}

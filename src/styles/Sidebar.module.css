@@ -1,38 +1,53 @@
+/* Sidebar is always an overlay drawer */
 .sidebar {
   display: flex;
   flex-direction: column;
   background: var(--color-surface);
   border-right: 1px solid var(--color-border);
   overflow: hidden;
-  position: relative;
+  position: fixed;
+  top: var(--toolbar-height);
+  left: 0;
+  bottom: 0;
+  width: var(--sidebar-width);
+  z-index: 100;
+  transform: translateX(-100%);
+  transition: transform 0.2s ease;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
 }
 
-.sidebarCollapsed .list {
-  display: none;
+.sidebarOpen {
+  transform: translateX(0);
 }
 
-.collapseBtn {
+
+.sortBtn {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  flex-shrink: 0;
-  padding: 0;
+  gap: 2px;
+  padding: 3px 7px;
   background: transparent;
   color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--color-border);
   border-radius: var(--radius);
-  transition: background var(--transition), color var(--transition);
+  flex-shrink: 0;
+  white-space: nowrap;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
 }
 
-.collapseBtn:hover {
+.sortBtn:hover {
   background: var(--color-surface2);
   color: var(--color-text);
+  border-color: var(--color-muted);
 }
 
-.collapseBtnFlipped {
-  transform: rotate(180deg);
+.sortArrow {
+  font-size: 10px;
+  line-height: 1;
 }
+
 
 .search {
   display: flex;
@@ -49,6 +64,43 @@
   padding: 7px 10px;
   font-size: 13px;
 }
+
+/* ── View toggle tabs ────────────────────────────────────────────────────── */
+
+.viewTabs {
+  display: flex;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.viewTab {
+  flex: 1;
+  padding: 7px 0;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 0;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color var(--transition), border-color var(--transition);
+}
+
+.viewTab:hover {
+  color: var(--color-text);
+}
+
+.viewTabActive {
+  color: var(--color-accent-h);
+  border-bottom-color: var(--color-accent);
+}
+
+.viewTabActive:hover {
+  color: var(--color-accent-h);
+}
+
+/* ── List ────────────────────────────────────────────────────────────────── */
 
 .list {
   flex: 1;
@@ -218,4 +270,44 @@
 .rootRow:hover .contextMenu,
 .rootRow:focus-within .contextMenu {
   opacity: 1;
+}
+
+/* Dimming overlay behind open sidebar */
+.sidebarOverlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  top: var(--toolbar-height);
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 99;
+}
+
+.sidebarOverlayVisible {
+  display: block;
+}
+
+/* ── Mobile ──────────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .sidebar {
+    width: min(var(--sidebar-width), 85vw);
+  }
+
+  /* Larger touch targets */
+  .folderRow {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .contextMenu {
+    opacity: 1;
+  }
+
+  .searchInput {
+    padding: 10px 12px;
+    font-size: 15px;
+  }
+
+  .search {
+    padding: 12px 10px 12px 14px;
+  }
 }

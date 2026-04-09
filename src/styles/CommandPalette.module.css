@@ -159,3 +159,33 @@ kbd {
   color: var(--color-muted);
   line-height: 1.6;
 }
+
+/* ── Mobile ──────────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .backdrop {
+    padding-top: 5vh;
+    align-items: flex-start;
+  }
+
+  .palette {
+    max-width: calc(100vw - 24px);
+    margin: 0 12px;
+  }
+
+  .input {
+    font-size: 16px; /* prevents iOS zoom on focus */
+  }
+
+  .results {
+    max-height: 55vh;
+  }
+
+  .item {
+    padding: 12px 16px;
+  }
+
+  .kbdHint,
+  .footer {
+    display: none;
+  }
+}

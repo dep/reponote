@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { loadConfig, clearConfig, saveConfig, loadShowAllFiles, saveShowAllFiles } from './storage.js'
+import { loadConfig, clearConfig, saveConfig, loadShowAllFiles, saveShowAllFiles, loadSortOrder, saveSortOrder, loadViewMode, saveViewMode } from './storage.js'
 import { listNotes, getNote, saveNote, deleteNote, getNoteCommits, renameNote, publishGist, searchNotesByTag } from './github.js'
 import { downloadFile, downloadFolder } from './download.js'
-import { buildHash, parseHash } from './permalink.js'
+import { buildHash, parseHash, buildParams, parseParams } from './permalink.js'
 import ConfigScreen from './components/ConfigScreen.jsx'
 import Sidebar from './components/Sidebar.jsx'
 import Toolbar from './components/Toolbar.jsx'
@@ -24,6 +24,7 @@ export default function App() {
 
   // Selected note
   const [selectedPath, setSelectedPath] = useState(null)
+  const [folderPath, setFolderPath] = useState(null) // e.g. "Daily Notes/" — folder listing view
   const [noteCache, setNoteCache] = useState({}) // { [path]: { content, sha } }
   const [noteError, setNoteError] = useState(null)
 
@@ -65,7 +66,11 @@ export default function App() {
 
   // Command palette
   const [paletteOpen, setPaletteOpen] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+
+  // UI prefs — initialised from URL params, then localStorage fallback
+  const [sidebarOpen, setSidebarOpen] = useState(() => parseParams(window.location.search).sidebarOpen)
+  const [sortOrder,   setSortOrder]   = useState(() => { const p = parseParams(window.location.search); return p.sortOrder !== 'date-desc' ? p.sortOrder : loadSortOrder() })
+  const [viewMode,    setViewMode]    = useState(() => { const p = parseParams(window.location.search); return p.viewMode  !== 'tree'      ? p.viewMode  : loadViewMode()  })
 
   // Ref for the sidebar search input (⌘F focuses it)
   const searchRef = useRef(null)
@@ -79,15 +84,25 @@ export default function App() {
   const selectedPathRef = useRef(selectedPath)
   useEffect(() => { selectedPathRef.current = selectedPath }, [selectedPath])
 
-  // Write hash on every meaningful state change (skip when not configured)
+  // Write hash + query params on every meaningful state change
+  // Gate on didBootFromHash so the initial render doesn't overwrite the URL
+  // before the boot effect has had a chance to read and apply it.
   useEffect(() => {
     if (!isConfigured) return
-    const hash = buildHash(config, selectedPath)
-    const next = hash ? `#${hash}` : '#'
-    if (window.location.hash !== next) {
-      window.history.pushState(null, '', next)
+    if (!didBootFromHash.current) return
+    const hash   = buildHash(config, selectedPath, folderPath)
+    const params = buildParams({ sortOrder, viewMode, sidebarOpen })
+    const search = params ? `?${params}` : ''
+    const next   = `${search}${hash ? `#${hash}` : ''}`
+    const current = window.location.search + window.location.hash
+    if (current !== next) {
+      window.history.pushState(null, '', next || window.location.pathname)
     }
-  }, [isConfigured, config.owner, config.repo, config.branch, selectedPath])
+  }, [isConfigured, config.owner, config.repo, config.branch, selectedPath, folderPath, sortOrder, viewMode, sidebarOpen])
+
+  // Persist UI prefs to localStorage whenever they change
+  useEffect(() => { saveSortOrder(sortOrder) }, [sortOrder])
+  useEffect(() => { saveViewMode(viewMode)   }, [viewMode])
 
   // On mount: read hash and auto-configure / auto-select if present
   const didBootFromHash = useRef(false)
@@ -98,27 +113,25 @@ export default function App() {
     const parsed = parseHash(window.location.hash)
     if (!parsed) return
 
-    const { owner, repo, branch, filePath } = parsed
+    const { owner, repo, branch, filePath, folderPath: hashFolderPath } = parsed
 
-    // If config already matches (e.g. reloading same repo), just auto-select file
+    // If config already matches (e.g. reloading same repo), just auto-select file/folder
     if (
       config.owner === owner &&
       config.repo === repo &&
       config.branch === branch
     ) {
-      if (filePath) {
-        // Will be selected once the note list loads (handled below)
-        setPendingHashFile(filePath)
-      }
+      if (filePath) setPendingHashFile(filePath)
+      else if (hashFolderPath) setFolderPath(hashFolderPath)
       return
     }
 
     // Repo in hash differs from stored config — apply it.
-    // If we have a PAT, carry it forward. If not, load read-only.
     const merged = { pat: config.pat ?? '', owner, repo, branch }
     saveConfig(merged)
     setConfig(merged)
     if (filePath) setPendingHashFile(filePath)
+    else if (hashFolderPath) setFolderPath(hashFolderPath)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -142,15 +155,25 @@ export default function App() {
   // Handle browser back/forward
   useEffect(() => {
     function onPopState() {
+      // Restore UI prefs from params
+      const { sortOrder: s, viewMode: v, sidebarOpen: sb } = parseParams(window.location.search)
+      setSortOrder(s)
+      setViewMode(v)
+      setSidebarOpen(sb)
+
       const parsed = parseHash(window.location.hash)
       if (!parsed) return
-      const { owner, repo, branch, filePath } = parsed
-      // Only react if same repo (cross-repo nav via history isn't supported without reload)
+      const { owner, repo, branch, filePath, folderPath: hashFolderPath } = parsed
       if (owner === config.owner && repo === config.repo && branch === config.branch) {
         if (filePath && filePath !== selectedPathRef.current) {
+          setFolderPath(null)
           handleSelectNote(filePath)
-        } else if (!filePath) {
+        } else if (hashFolderPath) {
           setSelectedPath(null)
+          setFolderPath(hashFolderPath)
+        } else if (!filePath && !hashFolderPath) {
+          setSelectedPath(null)
+          setFolderPath(null)
           setMode('view')
         }
       }
@@ -246,6 +269,7 @@ export default function App() {
   // Inner: actually load + switch to the note (no unsaved check).
   const handleSelectNote = useCallback(async (path) => {
     setSelectedPath(path)
+    setFolderPath(null)
     setMode('view')
     setEditContent('')
     setNoteError(null)
@@ -614,6 +638,7 @@ export default function App() {
         selectedPath={selectedPath}
         mode={mode}
         onToggleMode={handleToggleMode}
+        onMenuToggle={() => setSidebarOpen(o => !o)}
       />
 
       <div className={`${s.body} ${sidebarOpen ? '' : s.bodySidebarCollapsed}`}>
@@ -638,10 +663,15 @@ export default function App() {
           repoName={config.repo}
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => setSidebarOpen(o => !o)}
+          sortOrder={sortOrder}
+          onSortChange={setSortOrder}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
         />
 
         <EditorPane
           selectedPath={selectedPath}
+          folderPath={folderPath}
           noteCache={noteCache}
           mode={mode}
           editContent={editContent}
@@ -652,7 +682,14 @@ export default function App() {
           noteError={noteError}
           onReloadNote={handleReloadNote}
           notes={notes}
+          noteMeta={noteMeta}
           onNavigate={handleSelectNoteGuarded}
+          onFolderNavigate={path => {
+            setSelectedPath(null)
+            setFolderPath(path === '/' || path === '' ? '' : path.endsWith('/') ? path : path + '/')
+          }}
+          sortOrder={sortOrder}
+          onSortChange={setSortOrder}
           previewOpen={previewOpen}
           onPreviewToggle={setPreviewOpen}
           backlinks={backlinks}

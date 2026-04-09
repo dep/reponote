@@ -1,41 +1,73 @@
 /**
- * Permalink helpers — encode/decode app state into the URL hash.
+ * Permalink helpers — encode/decode app state into the URL hash + query params.
  *
- * Format:
+ * Hash format:
  *   #owner/repo                        (repo only, default branch)
  *   #owner/repo@branch                 (repo + non-default branch)
  *   #owner/repo/path/to/note.md        (repo + file, default branch)
  *   #owner/repo@branch/path/to/note.md (repo + file + branch)
  *
- * The file path portion is percent-encoded so slashes inside it are
- * preserved as %2F — but we use a different separator strategy:
- * the branch (if present) is encoded as @branch immediately after
- * the repo name, before any slash that starts the file path.
+ * Query params (appended to the URL before the hash):
+ *   ?sort=date-desc   sort order (date-desc | date-asc | name-asc | name-desc)
+ *   &view=tree        sidebar view mode (tree | files)
+ *   &sidebar=1        sidebar open (omitted when closed)
  */
+
+const VALID_SORTS = new Set(['date-desc', 'date-asc', 'name-asc', 'name-desc'])
+const VALID_VIEWS = new Set(['tree', 'files'])
+
+/**
+ * Build a query string from UI state.
+ * Only includes params that differ from their defaults so URLs stay clean.
+ */
+export function buildParams({ sortOrder, viewMode, sidebarOpen }) {
+  const p = new URLSearchParams()
+  if (sortOrder && sortOrder !== 'date-desc') p.set('sort', sortOrder)
+  if (viewMode  && viewMode  !== 'tree')       p.set('view', viewMode)
+  if (sidebarOpen)                              p.set('sidebar', '1')
+  return p.toString() // '' when all defaults
+}
+
+/**
+ * Parse query params back into UI state.
+ * Returns defaults for any missing/invalid values.
+ */
+export function parseParams(search) {
+  const p = new URLSearchParams(search)
+  const sort    = p.get('sort')
+  const view    = p.get('view')
+  const sidebar = p.get('sidebar')
+  return {
+    sortOrder:   VALID_SORTS.has(sort) ? sort : 'date-desc',
+    viewMode:    VALID_VIEWS.has(view) ? view : 'tree',
+    sidebarOpen: sidebar === '1',
+  }
+}
 
 /**
  * Build a hash string from the current state.
  * @param {object} config  - { owner, repo, branch }
  * @param {string|null} filePath - e.g. "folder/note.md" or null
+ * @param {string|null} folderPath - e.g. "folder/sub/" (trailing slash) or null
  * @returns {string} hash without leading #
  */
-export function buildHash(config, filePath) {
+export function buildHash(config, filePath, folderPath) {
   const { owner, repo, branch = 'main' } = config
   if (!owner || !repo) return ''
 
   const branchSuffix = branch && branch !== 'main' ? `@${branch}` : ''
   const base = `${owner}/${repo}${branchSuffix}`
 
-  if (!filePath) return base
+  const path = filePath ?? folderPath
+  if (!path || path === '/') return base
 
   // Encode each segment of the file path individually so internal slashes
   // stay as slashes (human-readable), but special chars are escaped.
-  const encodedPath = filePath
-    .split('/')
-    .map(seg => encodeURIComponent(seg))
-    .join('/')
+  const segments = path.replace(/\/$/, '').split('/').filter(Boolean)
+  const encodedPath = segments.map(seg => encodeURIComponent(seg)).join('/')
 
-  return `${base}/${encodedPath}`
+  // Re-append trailing slash for folder paths
+  return `${base}/${encodedPath}${path.endsWith('/') ? '/' : ''}`
 }
 
 /**
@@ -68,10 +100,17 @@ export function parseHash(hash) {
 
   if (!repo) return null
 
-  // Decode the file path segments
-  const filePath = filePart
-    ? filePart.split('/').map(seg => decodeURIComponent(seg)).join('/')
-    : null
+  if (!filePart) return { owner, repo, branch, filePath: null, folderPath: null }
 
-  return { owner, repo, branch, filePath }
+  // Decode the path segments
+  const isFolderPath = filePart.endsWith('/')
+  const decoded = filePart.replace(/\/$/, '').split('/').map(seg => decodeURIComponent(seg)).join('/')
+
+  return {
+    owner,
+    repo,
+    branch,
+    filePath:   isFolderPath ? null : decoded,
+    folderPath: isFolderPath ? decoded + '/' : null,
+  }
 }

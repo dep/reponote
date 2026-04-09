@@ -5,6 +5,8 @@ const KEYS = {
   BRANCH:      'reponote_branch',
   ALL_FILES:   'reponote_all_files',
   CONNECTIONS: 'reponote_connections',
+  SORT_ORDER:  'reponote_sort_order',
+  VIEW_MODE:   'reponote_view_mode',
 }
 
 export function loadConfig() {
@@ -53,4 +55,22 @@ export function loadShowAllFiles() {
 
 export function saveShowAllFiles(value) {
   localStorage.setItem(KEYS.ALL_FILES, value ? 'true' : 'false')
+}
+
+// Sort order: 'name-asc' | 'name-desc' | 'date-asc' | 'date-desc'
+export function loadSortOrder() {
+  return localStorage.getItem(KEYS.SORT_ORDER) ?? 'date-desc'
+}
+
+export function saveSortOrder(value) {
+  localStorage.setItem(KEYS.SORT_ORDER, value)
+}
+
+// Sidebar view mode: 'tree' | 'files'
+export function loadViewMode() {
+  return localStorage.getItem(KEYS.VIEW_MODE) ?? 'tree'
+}
+
+export function saveViewMode(value) {
+  localStorage.setItem(KEYS.VIEW_MODE, value)
 }

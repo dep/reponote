@@ -11,12 +11,17 @@ export default function Toolbar({
   selectedPath,
   mode,
   onToggleMode,
+  onMenuToggle,
 }) {
   const dotClass = status.type === 'idle' ? '' : s[status.type]
   const isMac = typeof navigator !== 'undefined' && navigator.platform?.toUpperCase().includes('MAC')
   const mod = isMac ? '⌘' : 'Ctrl'
   return (
     <div className={s.toolbar}>
+      <button className={s.menuBtn} onClick={onMenuToggle} title="Toggle sidebar" aria-label="Toggle sidebar">
+        ☰
+      </button>
+
       <div className={s.logo}>
         <span className={s.logoIcon}>📝</span>
         <span className={s.logoText}>RepoNote</span>
@@ -26,17 +31,17 @@ export default function Toolbar({
 
       {!readOnly && (
         <button className={s.btnNew} onClick={onNewNote} title={`New file (${mod}N)`}>
-          + New file <kbd className={s.kbd}>{mod}N</kbd>
+          <span className={s.btnLabel}>+ New file</span><kbd className={s.kbd}>{mod}N</kbd>
         </button>
       )}
 
       <button className={s.btnIcon} onClick={onOpenPalette} title={`Go to file (${mod}K)`}>
-        🔍 Go to file <kbd className={s.kbd}>{mod}K</kbd>
+        🔍 <span className={s.btnLabel}>Go to file</span><kbd className={s.kbd}>{mod}K</kbd>
       </button>
 
       {selectedPath && !readOnly && (
         <button className={s.btnIcon} onClick={onToggleMode} title={`Toggle edit/view (${mod}E)`}>
-          {mode === 'view' ? 'Edit' : 'View'} <kbd className={s.kbd}>{mod}E</kbd>
+          <span className={s.btnLabel}>{mode === 'view' ? 'Edit' : 'View'}</span><kbd className={s.kbd}>{mod}E</kbd>
         </button>
       )}
 

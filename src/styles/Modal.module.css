@@ -138,3 +138,36 @@
 .gistUrl a {
   color: var(--color-accent-h);
 }
+
+/* ── Mobile ──────────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .backdrop {
+    padding: 16px;
+    align-items: flex-end;
+  }
+
+  .dialog {
+    max-width: 100%;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding-bottom: calc(24px + var(--safe-bottom, 0px));
+  }
+
+  .input {
+    font-size: 16px; /* prevents iOS zoom on focus */
+    padding: 11px 14px;
+  }
+
+  .actions {
+    gap: 10px;
+  }
+
+  .btnCancel,
+  .btnConfirm,
+  .btnDanger,
+  .btnDiscard {
+    padding: 12px 20px;
+    font-size: 14px;
+    flex: 1;
+    justify-content: center;
+  }
+}

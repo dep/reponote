@@ -5,6 +5,7 @@
   padding: 0 14px;
   height: var(--toolbar-height);
   background: var(--color-surface);
+  overflow: hidden; /* never wrap — toolbar is always one line */
 }
 
 .logo {
@@ -100,6 +101,63 @@
 @keyframes blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
+}
+
+/* Sidebar toggle button */
+.menuBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 18px;
+  flex-shrink: 0;
+  border: 1px solid var(--color-border);
+}
+
+.menuBtn:hover {
+  background: var(--color-surface2);
+}
+
+/* ── Mid-width: hide text labels, keep icons ─────────────────────────────── */
+@media (max-width: 900px) {
+  .btnNew .btnLabel,
+  .btnIcon .btnLabel,
+  .kbd {
+    display: none;
+  }
+
+  .btnNew {
+    padding: 6px 10px;
+  }
+
+  .btnIcon {
+    padding: 6px 8px;
+  }
+}
+
+/* ── Narrow: hide secondary buttons too ──────────────────────────────────── */
+@media (max-width: 640px) {
+  .toolbar {
+    gap: 6px;
+    padding: 0 10px;
+  }
+
+  /* Hide less important buttons on small screens */
+  .btnToggle,
+  .disconnect,
+  .divider,
+  .logoText {
+    display: none;
+  }
+
+  /* Collapse status message to just the dot */
+  .status span:not(.dot) {
+    display: none;
+  }
 }
 
 .btnToggle {
