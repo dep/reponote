@@ -55,16 +55,35 @@ function preprocessHashtags(text) {
     .join('\n')
 }
 
-export default function MarkdownViewer({ content, notes = [], onNavigate, onTagClick }) {
+export default function MarkdownViewer({ content, notes = [], onNavigate, onTagClick, basePath, config }) {
   const html = useMemo(() => {
     if (!content) return ''
+
+    // Build a per-render renderer so the image rewriter has access to basePath/config
+    const r = new marked.Renderer()
+    r.code = renderer.code
+
+    if (basePath && config?.owner && config?.repo && config?.branch) {
+      // Directory of the current note, e.g. "People" for "People/Nick.md"
+      const noteDir = basePath.includes('/') ? basePath.slice(0, basePath.lastIndexOf('/')) : ''
+      r.image = ({ href, text }) => {
+        let src = href
+        // Rewrite relative paths to raw.githubusercontent.com
+        if (src && !/^https?:\/\//i.test(src) && !src.startsWith('data:')) {
+          const filePath = noteDir ? `${noteDir}/${src}` : src
+          src = `https://raw.githubusercontent.com/${config.owner}/${config.repo}/${config.branch}/${filePath}`
+        }
+        return `<img src="${src}" alt="${text ?? ''}">`
+      }
+    }
+
     const withLinks = preprocessWikilinks(content, notes)
     const withTags = preprocessHashtags(withLinks)
     // Parse as markdown, then sanitize — allow data-* attrs and hljs class names
-    return DOMPurify.sanitize(marked.parse(withTags, { renderer }), {
+    return DOMPurify.sanitize(marked.parse(withTags, { renderer: r }), {
       ADD_ATTR: ['data-wikilink', 'data-tag'],
     })
-  }, [content, notes])
+  }, [content, notes, basePath, config])
 
   function handleClick(e) {
     // Wikilink navigation

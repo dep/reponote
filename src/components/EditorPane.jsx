@@ -310,7 +310,7 @@ export default function EditorPane({
 
       {cached && isMarkdown && mode === 'view' && (
         <div className={s.viewStack}>
-          <MarkdownViewer content={cached.content} notes={notes} onNavigate={onNavigate} onTagClick={onTagClick} />
+          <MarkdownViewer content={cached.content} notes={notes} onNavigate={onNavigate} onTagClick={onTagClick} basePath={selectedPath} config={config} />
           {backlinks.length > 0 && (
             <div className={s.backlinks}>
               <div className={s.backlinksLabel}>Linked from</div>
